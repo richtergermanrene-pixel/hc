@@ -188,7 +188,7 @@
     GENERAR HISTORIA CLÍNICA
   </button>
   <div style="text-align:center; margin-top:10px;">
-    <button class="btn-nueva" onclick="configurarGeminiKey()" style="font-size:12px; padding:7px 14px;">🔑 Configurar API key</button>
+    <button class="btn-nueva" onclick="configurarApiKey()" style="font-size:12px; padding:7px 14px;">🔑 Configurar API key</button>
   </div>
   <div class="error-msg" id="errorMsg"></div>
 </div>
@@ -353,20 +353,20 @@ function validarDias() {
 
 function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
 
-/* ---------- API key de Gemini (guardada solo en el navegador, nunca en el repo) ---------- */
-function obtenerGeminiKey() {
-  return (localStorage.getItem('geminiKey') || '').trim();
+/* ---------- API key de Claude / Anthropic (guardada solo en el navegador, nunca en el repo) ---------- */
+function obtenerApiKey() {
+  return (localStorage.getItem('anthropicKey') || '').trim();
 }
-function configurarGeminiKey() {
-  const actual = obtenerGeminiKey();
-  const k = prompt('Pegá tu API key de Google Gemini.\n\nSe guarda solo en este navegador (no se sube al repositorio).', actual);
+function configurarApiKey() {
+  const actual = obtenerApiKey();
+  const k = prompt('Pegá tu API key de Claude (Anthropic), empieza con "sk-ant-".\n\nSe guarda solo en este navegador (no se sube al repositorio).', actual);
   if (k === null) return; // canceló
   const limpia = k.trim();
   if (limpia) {
-    localStorage.setItem('geminiKey', limpia);
+    localStorage.setItem('anthropicKey', limpia);
     alert('API key guardada en este navegador.');
   } else {
-    localStorage.removeItem('geminiKey');
+    localStorage.removeItem('anthropicKey');
     alert('API key eliminada de este navegador.');
   }
 }
@@ -535,9 +535,9 @@ EPICRISIS:
 
   // La API key NO está en el código. Se pide al usuario y se guarda en el navegador
   // (localStorage), así nunca queda en el repositorio público.
-  const geminiKey = obtenerGeminiKey();
-  if (!geminiKey) {
-    mostrarError('Configurá tu API key de Gemini (botón "🔑 API key") para generar la historia.');
+  const apiKey = obtenerApiKey();
+  if (!apiKey) {
+    mostrarError('Configurá tu API key de Claude / Anthropic (botón "🔑 Configurar API key") para generar la historia.');
     return;
   }
 
@@ -547,19 +547,28 @@ EPICRISIS:
   document.getElementById('errorMsg').style.display = 'none';
 
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=' + geminiKey, {
+    // Llamada directa a la API de Mensajes de Claude (Anthropic) desde el navegador.
+    // El header 'anthropic-dangerous-direct-browser-access' habilita el acceso por CORS.
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 4000, temperature: 0.3 }
+        model: 'claude-opus-4-8',   // modelo más capaz; cambiar a 'claude-haiku-4-5' para abaratar
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
       })
     });
 
     const data = await res.json();
-    if (data.error) { mostrarError('Error API: ' + data.error.message); return; }
+    if (data.error) { mostrarError('Error API: ' + (data.error.message || data.error.type)); return; }
 
-    const texto = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // La respuesta de Claude viene en data.content[] (bloques); tomamos el texto.
+    const texto = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('') || '';
     renderizarHC(texto);
     document.getElementById('resultado-wrap').style.display = 'block';
     document.getElementById('resultado-wrap').scrollIntoView({ behavior: 'smooth' });
@@ -928,7 +937,7 @@ async function auditarLote() {
   txt.textContent = 'Auditoría completa: ' + _resultadosAuditar.length + ' historia(s).';
 
   /* ====== HOOK para análisis con IA (desactivado por decisión del usuario) ======
-     Acá iría 1 sola llamada por lote a un modelo (Gemini/Claude Haiku) para
+     Acá iría 1 sola llamada por lote a Claude (Anthropic) para
      validar coherencia indicaciones médicas vs registros de enfermería y
      exámenes solicitados vs realizados. Se deja preparado:
 
