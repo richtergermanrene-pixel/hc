@@ -3,1057 +3,1118 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HC — Sanatorio Norte</title>
+<title>Sanatorio Norte S.R.L. — Historias Clínicas y Auditoría</title>
+
+<!-- Fuente -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Librerías CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/index.min.js"></script>
+
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', sans-serif; background: #eef2f7; min-height: 100vh; padding: 24px 16px 60px; }
-  .header { display: flex; align-items: center; gap: 14px; max-width: 620px; margin: 0 auto 28px; }
-  .header-cruz { width: 52px; height: 52px; background: #1a2e4a; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .header-texto h1 { font-size: 21px; font-weight: 700; color: #1a2e4a; }
-  .header-texto p { font-size: 12px; color: #718096; margin-top: 2px; }
-  .card { background: white; border-radius: 18px; box-shadow: 0 4px 28px rgba(0,0,0,0.09); padding: 30px 32px; width: 100%; max-width: 620px; margin: 0 auto 16px; }
-  .seccion-titulo { font-size: 11px; font-weight: 700; color: #2b6cb0; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 18px; display: flex; align-items: center; gap: 7px; }
-  .campo { margin-bottom: 16px; }
-  .campo label { display: block; font-size: 11px; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
-  .campo input, .campo select, .campo textarea { width: 100%; border: 2px solid #e2e8f0; border-radius: 10px; padding: 11px 14px; font-size: 14px; font-family: 'Inter', sans-serif; color: #1a202c; background: #f7fafc; transition: all 0.15s; }
-  .campo input:focus, .campo select:focus, .campo textarea:focus { outline: none; border-color: #2b6cb0; background: white; box-shadow: 0 0 0 3px rgba(43,108,176,0.1); }
-  .campo textarea { resize: vertical; min-height: 85px; line-height: 1.6; }
-  .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .dias-header { font-size: 11px; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
-  .dias-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px; }
-  .dia-box { border-radius: 10px; padding: 12px 8px; text-align: center; }
-  .dia-box.total { background: #1a2e4a; color: white; }
-  .dia-box.sector { background: #ebf8ff; border: 2px solid #bee3f8; }
-  .dia-box label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
-  .dia-box.total label { color: #90cdf4; }
-  .dia-box.sector label { color: #2c5282; }
-  .dia-box input { width: 100%; border-radius: 7px; padding: 8px 4px; font-size: 22px; font-weight: 700; text-align: center; font-family: 'Inter', sans-serif; border: none; }
-  .dia-box.total input { background: #2c5282; color: white; cursor: default; }
-  .dia-box.sector input { background: white; color: #1a2e4a; border: 2px solid #90cdf4; }
-  .dia-box.sector input:focus { outline: none; border-color: #2b6cb0; box-shadow: 0 0 0 3px rgba(43,108,176,0.15); }
-  .dias-aviso { font-size: 12px; font-weight: 500; padding: 8px 12px; border-radius: 8px; margin-top: 6px; display: none; }
-  .dias-aviso.ok { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; display: block; }
-  .dias-aviso.error { background: #fff5f5; color: #9b2c2c; border: 1px solid #feb2b2; display: block; }
-  hr { border: none; border-top: 2px solid #edf2f7; margin: 24px 0; }
-  .btn-generar { width: 100%; background: #1a2e4a; color: white; border: none; border-radius: 12px; padding: 17px; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background 0.2s, transform 0.1s; letter-spacing: 0.3px; margin-top: 4px; }
-  .btn-generar:hover { background: #2c5282; }
-  .btn-generar:active { transform: scale(0.98); }
-  .btn-generar:disabled { background: #a0aec0; cursor: not-allowed; }
-  .spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .error-msg { background: #fff5f5; border: 2px solid #feb2b2; color: #9b2c2c; border-radius: 10px; padding: 12px 16px; margin-top: 12px; font-size: 13px; display: none; }
-  #resultado-wrap { max-width: 800px; margin: 28px auto 0; display: none; }
-  .resultado-barra { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 0 4px; }
-  .resultado-barra h2 { font-size: 16px; font-weight: 700; color: #1a2e4a; }
-  .btns-resultado { display: flex; gap: 10px; }
-  .btn-imprimir { background: #276749; color: white; border: none; border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: background 0.2s; }
-  .btn-imprimir:hover { background: #22543d; }
-  .btn-nueva { background: transparent; border: 2px solid #1a2e4a; color: #1a2e4a; border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
-  .btn-nueva:hover { background: #ebf4ff; }
-  #resultado-doc { background: white; border-radius: 14px; border: 2px solid #e2e8f0; padding: 44px 52px; font-family: Arial, sans-serif; font-size: 13px; line-height: 1.8; color: #1a202c; }
-  #resultado-doc .hc-titulo { font-size: 16px; font-weight: bold; text-align: center; margin-bottom: 4px; }
-  #resultado-doc .hc-subtitulo { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #1a2e4a; padding-bottom: 10px; }
-  #resultado-doc .hc-seccion { font-weight: bold; font-size: 13px; margin-top: 18px; margin-bottom: 6px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
-  #resultado-doc .hc-linea { margin-bottom: 3px; }
-  #resultado-doc .hc-parrafo { margin-bottom: 10px; text-align: justify; }
-@media print {
-    body { background: white; padding: 0; }
-    .header, .card, .resultado-barra, .error-msg, .tabs { display: none !important; }
-    #resultado-wrap { display: block !important; margin: 0; max-width: 100%; }
-    #resultado-doc { border: none; padding: 20px; border-radius: 0; }
+  :root{
+    --azul-oscuro:#1a2e4a;
+    --azul-claro:#2b6cb0;
+    --azul-hover:#2256a0;
+    --gris-bg:#f4f6f9;
+    --gris-borde:#dfe4ea;
+    --gris-texto:#4a5568;
+    --gris-suave:#718096;
+    --ok-bg:#f0fff4; --ok-tx:#276749; --ok-bd:#9ae6b4;
+    --err-bg:#fff5f5; --err-tx:#9b2c2c; --err-bd:#feb2b2;
+    --warn-bg:#fffaf0; --warn-tx:#975a16; --warn-bd:#fbd38d;
+    --sombra:0 4px 28px rgba(0,0,0,0.09);
+    --radio:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Inter',system-ui,Segoe UI,Roboto,Arial,sans-serif;
+    background:var(--gris-bg);
+    color:var(--azul-oscuro);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
   }
 
-  /* ===== MÓDULO AUDITORÍA: pestañas principales ===== */
-  .tabs { display: flex; gap: 8px; max-width: 620px; margin: 0 auto 18px; background: #dde5ef; padding: 6px; border-radius: 14px; }
-  .tab-btn { flex: 1; border: none; background: transparent; padding: 12px 10px; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; color: #5a6b82; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 7px; }
-  .tab-btn.activo { background: white; color: #1a2e4a; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-  .tab-panel { display: none; }
-  .tab-panel.activo { display: block; }
+  /* ===== Header ===== */
+  header.app{
+    background:linear-gradient(135deg,var(--azul-oscuro),var(--azul-claro));
+    color:#fff;
+    padding:18px 26px;
+    display:flex;align-items:center;gap:16px;
+    box-shadow:var(--sombra);
+    position:sticky;top:0;z-index:50;
+  }
+  .cruz{
+    width:48px;height:48px;flex-shrink:0;
+  }
+  .cruz svg{width:48px;height:48px;display:block;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+  header.app h1{font-size:20px;font-weight:700;letter-spacing:.2px}
+  header.app .sub{font-size:12.5px;font-weight:400;opacity:.85}
+  header.app .spacer{flex:1}
+  .btn-key{
+    background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.35);
+    padding:9px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;
+    transition:background .15s;white-space:nowrap;
+  }
+  .btn-key:hover{background:rgba(255,255,255,.28)}
+  .key-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:#fc8181}
+  .key-dot.on{background:#68d391}
 
-  /* ===== MÓDULO AUDITORÍA: controles ===== */
-  .fuente-tabs { display: flex; gap: 10px; margin-bottom: 18px; }
-  .fuente-btn { flex: 1; border: 2px solid #e2e8f0; background: #f7fafc; border-radius: 10px; padding: 12px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.15s; }
-  .fuente-btn.activo { border-color: #2b6cb0; background: #ebf8ff; color: #2c5282; }
-  .fuente-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-  .dropzone { border: 2px dashed #cbd5e0; border-radius: 12px; padding: 32px 20px; text-align: center; color: #718096; cursor: pointer; transition: all 0.15s; background: #f7fafc; }
-  .dropzone:hover, .dropzone.drag { border-color: #2b6cb0; background: #ebf8ff; color: #2c5282; }
-  .dropzone strong { color: #1a2e4a; }
-  .lista-archivos { margin-top: 14px; font-size: 13px; }
-  .lista-archivos .arch { display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 6px; color: #2d3748; }
-  .progreso-wrap { display: none; margin-top: 18px; }
-  .progreso-bar { width: 100%; height: 10px; background: #e2e8f0; border-radius: 6px; overflow: hidden; }
-  .progreso-fill { height: 100%; width: 0; background: #2b6cb0; transition: width 0.2s; }
-  .progreso-texto { font-size: 12px; color: #718096; margin-top: 8px; text-align: center; }
-  .tabla-resultados { display: none; max-width: 1000px; margin: 24px auto 0; overflow-x: auto; }
-  .tabla-resultados table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 28px rgba(0,0,0,0.09); font-size: 12.5px; }
-  .tabla-resultados th { background: #1a2e4a; color: white; padding: 12px 14px; text-align: left; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
-  .tabla-resultados td { padding: 11px 14px; border-bottom: 1px solid #edf2f7; vertical-align: top; color: #2d3748; }
-  .tabla-resultados tr:last-child td { border-bottom: none; }
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
-  .badge.completa { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
-  .badge.incompleta { background: #fffaf0; color: #9c4221; border: 1px solid #fbd38d; }
-  .badge.errores { background: #fff5f5; color: #9b2c2c; border: 1px solid #feb2b2; }
-  .resumen-cards { display: none; grid-template-columns: repeat(4, 1fr); gap: 12px; max-width: 1000px; margin: 0 auto 18px; }
-  .resumen-card { background: white; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
-  .resumen-card .num { font-size: 26px; font-weight: 700; color: #1a2e4a; }
-  .resumen-card .lbl { font-size: 11px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+  /* ===== Layout ===== */
+  .wrap{max-width:1040px;margin:0 auto;padding:24px 20px 60px}
+
+  /* ===== Tabs ===== */
+  .tabs{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap}
+  .tab{
+    flex:1;min-width:180px;background:#fff;border:1px solid var(--gris-borde);
+    border-radius:12px;padding:14px 18px;font-size:15px;font-weight:600;cursor:pointer;
+    color:var(--gris-texto);transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.04);
+  }
+  .tab:hover{border-color:var(--azul-claro)}
+  .tab.active{background:var(--azul-claro);color:#fff;border-color:var(--azul-claro);box-shadow:var(--sombra)}
+
+  .panel{display:none;animation:fade .25s}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ===== Tarjetas ===== */
+  .card{background:#fff;border:1px solid var(--gris-borde);border-radius:var(--radio);padding:24px;box-shadow:var(--sombra);margin-bottom:20px}
+  .card h2{font-size:17px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .card .hint{font-size:13px;color:var(--gris-suave);margin-bottom:18px}
+
+  /* ===== Formulario ===== */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field.full{grid-column:1/-1}
+  label{font-size:13px;font-weight:600;color:var(--gris-texto)}
+  label .req{color:#e53e3e}
+  input,textarea,select{
+    font-family:inherit;font-size:14px;color:var(--azul-oscuro);
+    border:1px solid var(--gris-borde);border-radius:10px;padding:10px 12px;background:#fff;
+    transition:border .15s,box-shadow .15s;width:100%;
+  }
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--azul-claro);box-shadow:0 0 0 3px rgba(43,108,176,.15)}
+  textarea{resize:vertical;min-height:80px}
+  input[readonly]{background:#edf2f7;color:var(--gris-suave);font-weight:600;cursor:not-allowed}
+
+  .dias-box{background:#edf2f7;border-radius:10px;padding:14px;margin-top:4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .dias-box .total{font-size:22px;font-weight:700;color:var(--azul-claro)}
+  .dias-box .lbl{font-size:13px;color:var(--gris-texto)}
+  .suma-chip{font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:20px}
+  .suma-chip.ok{background:var(--ok-bg);color:var(--ok-tx);border:1px solid var(--ok-bd)}
+  .suma-chip.bad{background:var(--err-bg);color:var(--err-tx);border:1px solid var(--err-bd)}
+
+  /* ===== Botones ===== */
+  .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+  .btn{
+    border:none;border-radius:11px;padding:12px 22px;font-size:14.5px;font-weight:600;cursor:pointer;
+    transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:8px;
+  }
+  .btn-primary{background:var(--azul-claro);color:#fff}
+  .btn-primary:hover{background:var(--azul-hover)}
+  .btn-primary:disabled{background:#a0aec0;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:var(--azul-claro);border:1px solid var(--azul-claro)}
+  .btn-ghost:hover{background:#ebf4ff}
+  .btn-dark{background:var(--azul-oscuro);color:#fff}
+  .btn-dark:hover{background:#243b5e}
+
+  /* ===== Mensajes ===== */
+  .msg{border-radius:10px;padding:12px 16px;font-size:14px;font-weight:500;margin-top:16px;display:flex;gap:8px;align-items:flex-start}
+  .msg.ok{background:var(--ok-bg);color:var(--ok-tx);border:1px solid var(--ok-bd)}
+  .msg.err{background:var(--err-bg);color:var(--err-tx);border:1px solid var(--err-bd)}
+  .msg.warn{background:var(--warn-bg);color:var(--warn-tx);border:1px solid var(--warn-bd)}
+  .msg.info{background:#ebf8ff;color:#2c5282;border:1px solid #90cdf4}
+  .msg ul{margin:6px 0 0 18px}
+
+  /* ===== Spinner ===== */
+  .spinner{width:18px;height:18px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+  .spinner.dark{border-color:rgba(43,108,176,.25);border-top-color:var(--azul-claro)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ===== Preview HC ===== */
+  #hcPreview{margin-top:22px;display:none}
+  .hc-doc{
+    background:#fff;border:1px solid var(--gris-borde);border-radius:12px;
+    padding:38px 44px;box-shadow:var(--sombra);
+    font-family:'Inter',Arial,sans-serif;color:#1a202c;
+  }
+  .hc-titulo{font-size:19px;font-weight:700;text-align:center;color:var(--azul-oscuro);letter-spacing:.5px}
+  .hc-subtitulo{font-size:14px;font-weight:600;text-align:center;color:var(--azul-claro);margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid var(--gris-borde)}
+  .hc-seccion{font-size:14px;font-weight:700;color:var(--azul-oscuro);margin:18px 0 6px;text-transform:uppercase;letter-spacing:.3px}
+  .hc-linea{font-size:13.5px;color:#2d3748;margin:2px 0;white-space:pre-wrap}
+  .hc-vacia{height:8px}
+
+  /* ===== Auditoría ===== */
+  .dropzone{
+    border:2.5px dashed var(--gris-borde);border-radius:14px;padding:38px 24px;text-align:center;
+    background:#fbfcfe;cursor:pointer;transition:all .15s;
+  }
+  .dropzone:hover,.dropzone.drag{border-color:var(--azul-claro);background:#ebf4ff}
+  .dropzone .ico{font-size:38px}
+  .dropzone .t{font-size:15px;font-weight:600;margin-top:6px}
+  .dropzone .s{font-size:13px;color:var(--gris-suave);margin-top:4px}
+
+  .file-list{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+  .file-item{display:flex;align-items:center;gap:10px;background:#f7fafc;border:1px solid var(--gris-borde);border-radius:10px;padding:10px 14px;font-size:13.5px}
+  .file-item .nm{flex:1;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .file-item .rm{cursor:pointer;color:#e53e3e;font-weight:700;background:none;border:none;font-size:16px}
+
+  table{width:100%;border-collapse:collapse;margin-top:18px;font-size:13px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--gris-borde)}
+  th{background:#f7fafc;font-weight:600;color:var(--gris-texto);font-size:12px;text-transform:uppercase;letter-spacing:.3px}
+  td .badge{padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600}
+  .badge.ok{background:var(--ok-bg);color:var(--ok-tx)}
+  .badge.bad{background:var(--err-bg);color:var(--err-tx)}
+  .badge.warn{background:var(--warn-bg);color:var(--warn-tx)}
+  .audit-file-title{font-weight:600;font-size:14px;margin:20px 0 0;color:var(--azul-oscuro)}
+
+  /* ===== Modal ===== */
+  .modal-bg{position:fixed;inset:0;background:rgba(26,46,74,.55);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+  .modal-bg.show{display:flex}
+  .modal{background:#fff;border-radius:16px;padding:28px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .modal h3{font-size:18px;margin-bottom:6px}
+  .modal p{font-size:13.5px;color:var(--gris-texto);margin-bottom:16px}
+  .modal .actions{justify-content:flex-end;margin-top:18px}
+  .modal a{color:var(--azul-claro)}
+
+  /* ===== Responsive ===== */
+  @media(max-width:720px){
+    .grid,.grid-3{grid-template-columns:1fr}
+    header.app h1{font-size:17px}
+    .hc-doc{padding:24px 20px}
+    .wrap{padding:18px 14px 50px}
+  }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<!-- PDF.js: extracción de texto de PDFs en el navegador (reemplaza pdfplumber, que es Python y no corre del lado cliente) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<!-- ExcelJS: generación del reporte .xlsx descargable -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 </head>
 <body>
 
-<div class="header">
-  <div class="header-cruz">
-    <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
-      <path d="M15 4v22M4 15h22" stroke="white" stroke-width="4" stroke-linecap="round"/>
+<!-- ============ HEADER ============ -->
+<header class="app">
+  <div class="cruz">
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sanatorio Norte">
+      <rect width="100" height="100" rx="14" fill="#16c1a8"/>
+      <circle cx="50" cy="37" r="19" fill="none" stroke="#39485a" stroke-width="9"/>
+      <circle cx="50" cy="63" r="19" fill="none" stroke="#39485a" stroke-width="9"/>
+      <path d="M34 71 L34 32 L63 68 L63 30" fill="none" stroke="#ffffff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </div>
-  <div class="header-texto">
+  <div>
     <h1>Sanatorio Norte S.R.L.</h1>
-    <p>Sistema de Historias Clínicas — Reconquista, Santa Fe</p>
+    <div class="sub">San Martín 1126 · 3561 Avellaneda, Santa Fe · Historias Clínicas y Auditoría</div>
   </div>
-</div>
-
-<!-- ===== PESTAÑAS PRINCIPALES (TAB 1: Generar / TAB 2: Auditar) ===== -->
-<div class="tabs">
-  <button class="tab-btn activo" id="tabBtnGenerar" onclick="cambiarTab('generar')">📝 Generar Historia Clínica</button>
-  <button class="tab-btn" id="tabBtnAuditar" onclick="cambiarTab('auditar')">🔎 Auditar Historias Clínicas</button>
-</div>
-
-<!-- ===== TAB 1: GENERAR HISTORIA CLÍNICA (funcionalidad existente, sin cambios) ===== -->
-<div id="tab-generar" class="tab-panel activo">
-
-<div class="card">
-<div class="seccion-titulo">👤 Datos del Paciente</div>
-  <div class="fila2">
-    <div class="campo"><label>Apellido y Nombre</label><input type="text" id="nombre" placeholder="García, Juan Carlos"/></div>
-    <div class="campo"><label>DNI</label><input type="text" id="dni" placeholder="20.345.678"/></div>
-  </div>
-  <div class="fila2">
-    <div class="campo"><label>Edad</label><input type="text" id="edad" placeholder="65 años"/></div>
-    <div class="campo"><label>Sexo</label>
-      <select id="sexo">
-        <option value="">— Seleccionar —</option>
-        <option>Masculino</option>
-        <option>Femenino</option>
-        <option>Otro</option>
-      </select>
-    </div>
-  </div>
-  <div class="fila2">
-    <div class="campo"><label>Obra Social</label><input type="text" id="obraSocial" placeholder="PAMI / OSDE / Particular"/></div>
-  </div>
-
-  <hr/>
-  <div class="seccion-titulo">🏥 Internación</div>
-  <div class="fila2">
-    <div class="campo"><label>Fecha de Ingreso <span style="color:#e53e3e">*</span></label><input type="date" id="fechaIngreso" onchange="calcularDias()"/></div>
-    <div class="campo"><label>Fecha de Egreso <span style="color:#e53e3e">*</span></label><input type="date" id="fechaEgreso" onchange="calcularDias()"/></div>
-  </div>
-
-  <div class="dias-header">🛏️ Días de Internación por Sector <span style="color:#e53e3e">*</span></div>
-  <div class="dias-grid">
-    <div class="dia-box total"><label>Total</label><input type="number" id="diasTotal" readonly value="0"/></div>
-    <div class="dia-box sector"><label>🏥 Sala</label><input type="number" id="diasSala" min="0" value="0" onchange="validarDias()"/></div>
-    <div class="dia-box sector"><label>❤️ UCO</label><input type="number" id="diasUCO" min="0" value="0" onchange="validarDias()"/></div>
-    <div class="dia-box sector"><label>🫁 UTI</label><input type="number" id="diasUTI" min="0" value="0" onchange="validarDias()"/></div>
-  </div>
-  <div class="dias-aviso" id="diasAviso"></div>
-
-  <div class="campo" style="margin-top:16px;">
-    <label>Condición de Egreso</label>
-    <select id="condicionEgreso">
-      <option value="">— Seleccionar —</option>
-      <option>Alta médica</option>
-      <option>Alta voluntaria</option>
-      <option>Traslado a otro centro</option>
-      <option>Fallecido</option>
-    </select>
-  </div>
-
-  <hr/>
-  <div class="seccion-titulo">🩺 Diagnóstico</div>
-  <div class="campo">
-    <label>Diagnóstico Principal</label>
-    <textarea id="diagnostico" placeholder="Ej: Infarto agudo de miocardio anterior&#10;Ej: Neumonía bilateral&#10;Ej: ACV isquémico&#10;&#10;Podés agregar diagnósticos secundarios..."></textarea>
-  </div>
-
-  <button class="btn-generar" id="btnGenerar" onclick="generarHC()">
-    <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    GENERAR HISTORIA CLÍNICA
+  <div class="spacer"></div>
+  <button class="btn-key" id="btnKey" onclick="abrirModalKey()">
+    <span class="key-dot" id="keyDot"></span><span id="keyTxt">🔑 Configurar API key</span>
   </button>
-  <div style="text-align:center; margin-top:10px;">
-    <button class="btn-nueva" onclick="configurarApiKey()" style="font-size:12px; padding:7px 14px;">🔑 Configurar API key</button>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ TABS ============ -->
+  <div class="tabs">
+    <button class="tab active" id="tab-gen" onclick="cambiarTab('gen')">📝 Generar HC</button>
+    <button class="tab" id="tab-aud" onclick="cambiarTab('aud')">🔎 Auditar HC</button>
   </div>
-  <div class="error-msg" id="errorMsg"></div>
-</div>
 
-<div id="resultado-wrap">
-  <div class="resultado-barra">
-    <h2>📄 Historia Clínica</h2>
-    <div class="btns-resultado">
-      <button class="btn-nueva" onclick="nuevaHC()">＋ Nueva HC</button>
-      <button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir</button>
-      <button class="btn-imprimir" style="background:#2b6cb0;" onclick="generarPDF()">📄 Descargar PDF</button>
-    </div>
-  </div>
-  <div id="resultado-doc"></div>
-</div>
+  <!-- ====================================================== -->
+  <!-- ============ MÓDULO 1: GENERAR HC ============ -->
+  <!-- ====================================================== -->
+  <div class="panel active" id="panel-gen">
+    <div class="card">
+      <h2>📝 Generar Historia Clínica</h2>
+      <p class="hint">Completá los datos del paciente. La Historia Clínica se genera automáticamente con Claude (modelo claude-sonnet-4-6).</p>
 
-</div><!-- /#tab-generar -->
-
-<!-- ===== TAB 2: AUDITAR HISTORIAS CLÍNICAS (módulo nuevo) ===== -->
-<div id="tab-auditar" class="tab-panel">
-
-  <div class="card">
-    <div class="seccion-titulo">📂 Origen de las historias clínicas</div>
-
-    <!-- Selector de fuente: Subida local (activa) / Google Drive (preparado, ver placeholder en JS) -->
-    <div class="fuente-tabs">
-      <button class="fuente-btn activo" id="fuenteLocal" onclick="cambiarFuente('local')">💻 Subir archivos PDF</button>
-      <button class="fuente-btn" id="fuenteDrive" onclick="cambiarFuente('drive')">☁️ Google Drive</button>
-    </div>
-
-    <!-- Fuente LOCAL -->
-    <div id="fuente-local">
-      <div class="dropzone" id="dropzone" onclick="document.getElementById('inputPDFs').click()">
-        <div style="font-size:34px; margin-bottom:8px;">📄⬆️</div>
-        <div><strong>Arrastrá los PDFs acá</strong> o hacé clic para seleccionar</div>
-        <div style="font-size:12px; margin-top:6px;">Podés seleccionar varias historias clínicas a la vez</div>
-      </div>
-      <input type="file" id="inputPDFs" accept="application/pdf" multiple style="display:none" onchange="archivosSeleccionados(this.files)"/>
-      <div class="lista-archivos" id="listaArchivos"></div>
-    </div>
-
-    <!-- Fuente GOOGLE DRIVE (placeholder funcional - requiere config OAuth, ver conectarDrive()) -->
-    <div id="fuente-drive" style="display:none">
-      <div class="dropzone" style="cursor:default">
-        <div style="font-size:34px; margin-bottom:8px;">☁️</div>
-        <div><strong>Conexión con Google Drive</strong></div>
-        <div style="font-size:12px; margin-top:6px; line-height:1.6;">
-          Pendiente de configuración. Requiere crear un OAuth Client ID en Google Cloud Console,
-          habilitar Drive API y autorizar el dominio <code>hcia.netlify.app</code>.<br/>
-          La estructura ya está lista en el código (función <code>conectarDrive()</code>).
+      <div class="grid">
+        <div class="field">
+          <label>Nombre y Apellido <span class="req">*</span></label>
+          <input id="f_nombre" type="text" placeholder="Ej: García, Juan Carlos">
         </div>
-        <button class="fuente-btn" style="max-width:220px; margin:14px auto 0; flex:none;" onclick="conectarDrive()">Conectar Google Drive</button>
+        <div class="field">
+          <label>DNI <span class="req">*</span></label>
+          <input id="f_dni" type="text" placeholder="Ej: 20.345.678">
+        </div>
+        <div class="field">
+          <label>Obra Social <span class="req">*</span></label>
+          <input id="f_os" type="text" placeholder="Ej: PAMI">
+        </div>
+        <div class="field">
+          <label>Fecha de Internación <span class="req">*</span></label>
+          <input id="f_ingreso" type="date" oninput="calcularDias()">
+        </div>
+        <div class="field">
+          <label>Fecha de Egreso / Alta <span class="req">*</span></label>
+          <input id="f_egreso" type="date" oninput="calcularDias()">
+        </div>
+        <div class="field">
+          <label>Días de internación TOTAL (automático)</label>
+          <input id="f_total" type="text" readonly value="—">
+        </div>
+        <div class="field full">
+          <label>Antecedentes</label>
+          <textarea id="f_antec" placeholder="Ej: Hipertensión arterial, diabetes tipo 2"></textarea>
+        </div>
+        <div class="field full">
+          <label>Diagnóstico Principal <span class="req">*</span></label>
+          <textarea id="f_diag" placeholder="Ej: Infarto agudo de miocardio anterior"></textarea>
+        </div>
       </div>
+
+      <div class="grid" style="margin-top:16px">
+        <div class="field">
+          <label>Días de Sala <span class="req">*</span></label>
+          <input id="f_sala" type="number" min="0" value="0" oninput="calcularDias()">
+        </div>
+        <div class="field">
+          <label>Días de UTI/UCO <span class="req">*</span></label>
+          <input id="f_utiuco" type="number" min="0" value="0" oninput="calcularDias()">
+        </div>
+      </div>
+
+      <div class="dias-box">
+        <span class="total" id="boxTotal">0</span>
+        <span class="lbl">días totales (egreso − ingreso)</span>
+        <div class="spacer" style="flex:1"></div>
+        <span class="suma-chip ok" id="sumaChip">Suma Sala+UTI/UCO: 0</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="btnGenerar" onclick="generarHC()">⚕️ Generar Historia Clínica</button>
+        <button class="btn btn-ghost" onclick="nuevaHC()">🗑️ Nueva HC</button>
+      </div>
+
+      <div id="genMsg"></div>
     </div>
 
-    <hr/>
-
-    <div class="seccion-titulo">🗓️ Período a auditar</div>
-    <div class="fila2">
-      <div class="campo">
-        <label>Filtrar por</label>
-        <select id="periodoTipo" onchange="togglePeriodo()">
-          <option value="todos">Todas las historias</option>
-          <option value="mes">Mes específico</option>
-          <option value="trimestre">Trimestre</option>
-        </select>
+    <!-- Preview -->
+    <div id="hcPreview">
+      <div class="actions" style="margin-bottom:14px">
+        <button class="btn btn-dark" onclick="descargarPDF()">📄 Descargar PDF</button>
+        <button class="btn btn-dark" onclick="descargarWord()">📝 Descargar Word</button>
       </div>
-      <div class="campo" id="periodoMesWrap" style="display:none">
-        <label>Mes</label>
-        <input type="month" id="periodoMes"/>
-      </div>
-      <div class="campo" id="periodoTrimWrap" style="display:none">
-        <label>Trimestre</label>
-        <select id="periodoTrim">
-          <option value="1">1° Trimestre (Ene–Mar)</option>
-          <option value="2">2° Trimestre (Abr–Jun)</option>
-          <option value="3">3° Trimestre (Jul–Sep)</option>
-          <option value="4">4° Trimestre (Oct–Dic)</option>
-        </select>
-      </div>
-      <div class="campo" id="periodoAnioWrap" style="display:none">
-        <label>Año</label>
-        <input type="number" id="periodoAnio" min="2000" max="2100" placeholder="2026"/>
-      </div>
-    </div>
-    <div style="font-size:11px; color:#a0aec0; margin-top:-6px;">El filtro de período usa la fecha de ingreso detectada en cada PDF. Las historias sin fecha detectable se incluyen siempre.</div>
-
-    <hr/>
-
-    <button class="btn-generar" id="btnAuditar" onclick="auditarLote()">
-      <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M11 19a8 8 0 100-16 8 8 0 000 16zm10 2l-4.35-4.35" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      AUDITAR LOTE
-    </button>
-    <div class="error-msg" id="errorAuditar"></div>
-
-    <!-- Barra de progreso -->
-    <div class="progreso-wrap" id="progresoWrap">
-      <div class="progreso-bar"><div class="progreso-fill" id="progresoFill"></div></div>
-      <div class="progreso-texto" id="progresoTexto">Procesando…</div>
+      <div class="hc-doc" id="hcDoc"></div>
     </div>
   </div>
 
-  <!-- Resumen + tabla de resultados -->
-  <div class="resumen-cards" id="resumenCards">
-    <div class="resumen-card"><div class="num" id="numTotal">0</div><div class="lbl">Auditadas</div></div>
-    <div class="resumen-card"><div class="num" id="numCompletas" style="color:#276749">0</div><div class="lbl">✅ Completas</div></div>
-    <div class="resumen-card"><div class="num" id="numIncompletas" style="color:#9c4221">0</div><div class="lbl">⚠️ Incompletas</div></div>
-    <div class="resumen-card"><div class="num" id="numErrores" style="color:#9b2c2c">0</div><div class="lbl">❌ Con errores</div></div>
-  </div>
+  <!-- ====================================================== -->
+  <!-- ============ MÓDULO 2: AUDITAR HC ============ -->
+  <!-- ====================================================== -->
+  <div class="panel" id="panel-aud">
+    <div class="card">
+      <h2>🔎 Auditar Historias Clínicas</h2>
+      <p class="hint">Subí uno o más PDFs de Historias Clínicas. Se extrae el texto con PDF.js y se aplican validaciones determinísticas.</p>
 
-  <div class="tabla-resultados" id="tablaResultados">
-    <div class="resultado-barra">
-      <h2>📋 Resultado de la auditoría</h2>
-      <div class="btns-resultado">
-        <button class="btn-imprimir" style="background:#276749;" onclick="descargarExcel()">⬇️ Descargar reporte Excel</button>
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+        <div class="ico">📂</div>
+        <div class="t">Arrastrá tus PDFs aquí o hacé clic para seleccionar</div>
+        <div class="s">Podés subir varios archivos a la vez (.pdf)</div>
       </div>
+      <input type="file" id="fileInput" accept="application/pdf" multiple style="display:none" onchange="onFiles(this.files)">
+
+      <div class="file-list" id="fileList"></div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="btnAuditar" onclick="auditar()" disabled>🔍 Auditar documentos</button>
+        <button class="btn btn-ghost" onclick="limpiarAuditoria()">🗑️ Limpiar</button>
+        <button class="btn btn-dark" id="btnExcel" onclick="descargarExcel()" style="display:none">📊 Descargar reporte Excel</button>
+      </div>
+
+      <div id="audMsg"></div>
+      <div id="audResultados"></div>
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Paciente</th>
-          <th>N° Historia</th>
-          <th>Fecha Ingreso</th>
-          <th>Estado</th>
-          <th>Errores encontrados</th>
-          <th>Severidad</th>
-        </tr>
-      </thead>
-      <tbody id="tablaBody"></tbody>
-    </table>
   </div>
 
-</div><!-- /#tab-auditar -->
+</div>
+
+<!-- ============ MODAL API KEY ============ -->
+<div class="modal-bg" id="modalKey">
+  <div class="modal">
+    <h3>🔑 Configurar API key de Claude</h3>
+    <p>Tu API key se guarda únicamente en este navegador (<code>localStorage</code>) y nunca se envía a otro servidor que no sea la API de Anthropic. Obtené tu key en <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+    <div class="field">
+      <label>API key (empieza con sk-ant-...)</label>
+      <input id="inpKey" type="password" placeholder="sk-ant-api03-...">
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="borrarKey()">Borrar key</button>
+      <button class="btn btn-ghost" onclick="cerrarModalKey()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarKey()">Guardar</button>
+    </div>
+    <div id="keyMsg"></div>
+  </div>
+</div>
 
 <script>
-function calcularDias() {
-  const fi = document.getElementById('fechaIngreso').value;
-  const fe = document.getElementById('fechaEgreso').value;
-  if (fi && fe) {
-    const diff = Math.round((new Date(fe) - new Date(fi)) / 86400000);
-    document.getElementById('diasTotal').value = diff > 0 ? diff : 0;
-    validarDias();
-  }
-}
-
-function validarDias() {
-  const total = parseInt(document.getElementById('diasTotal').value) || 0;
-  const sala  = parseInt(document.getElementById('diasSala').value) || 0;
-  const uco   = parseInt(document.getElementById('diasUCO').value) || 0;
-  const uti   = parseInt(document.getElementById('diasUTI').value) || 0;
-  const suma  = sala + uco + uti;
-  const aviso = document.getElementById('diasAviso');
-  if (total === 0) { aviso.className = 'dias-aviso'; return; }
-  if (suma === total) {
-    aviso.className = 'dias-aviso ok';
-    aviso.textContent = 'Correcto: Sala ' + sala + ' + UCO ' + uco + ' + UTI ' + uti + ' = ' + total + ' días';
-  } else {
-    aviso.className = 'dias-aviso error';
-    aviso.textContent = 'No coincide: Sala ' + sala + ' + UCO ' + uco + ' + UTI ' + uti + ' = ' + suma + ' días (deben sumar ' + total + ')';
-  }
-}
-
-function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
-
-/* ---------- API key de Claude / Anthropic (guardada solo en el navegador, nunca en el repo) ---------- */
-function obtenerApiKey() {
-  return (localStorage.getItem('anthropicKey') || '').trim();
-}
-function configurarApiKey() {
-  const actual = obtenerApiKey();
-  const k = prompt('Pegá tu API key de Claude (Anthropic), empieza con "sk-ant-".\n\nSe guarda solo en este navegador (no se sube al repositorio).', actual);
-  if (k === null) return; // canceló
-  const limpia = k.trim();
-  if (limpia) {
-    localStorage.setItem('anthropicKey', limpia);
-    alert('API key guardada en este navegador.');
-  } else {
-    localStorage.removeItem('anthropicKey');
-    alert('API key eliminada de este navegador.');
-  }
-}
-
-function mostrarError(msg) {
-  const el = document.getElementById('errorMsg');
-  el.textContent = '⚠️ ' + msg;
-  el.style.display = 'block';
-}
-
-function renderizarHC(texto) {
-  const doc = document.getElementById('resultado-doc');
-  doc.innerHTML = '';
-
-  const lineas = texto.split('\n');
-  let primeraLinea = true;
-  let segundaLinea = false;
-
-  for (let i = 0; i < lineas.length; i++) {
-    const linea = lineas[i].trim();
-    if (!linea) continue;
-
-    // Título principal
-    if (primeraLinea && linea.includes('SANATORIO NORTE')) {
-      const el = document.createElement('div');
-      el.className = 'hc-titulo';
-      el.textContent = linea;
-      doc.appendChild(el);
-      primeraLinea = false;
-      segundaLinea = true;
-      continue;
-    }
-
-    // Subtítulo
-    if (segundaLinea) {
-      const el = document.createElement('div');
-      el.className = 'hc-subtitulo';
-      el.textContent = linea;
-      doc.appendChild(el);
-      segundaLinea = false;
-      continue;
-    }
-
-    // Detectar títulos de sección (línea en mayúsculas con más de 4 chars)
-    const esTitulo = linea === linea.toUpperCase() && linea.length > 4 && !linea.match(/^\d/) && !linea.match(/^[A-Z]{2}:/);
-    if (esTitulo) {
-      const el = document.createElement('div');
-      el.className = 'hc-seccion';
-      el.textContent = linea;
-      doc.appendChild(el);
-      continue;
-    }
-
-    // Resto como línea normal
-    const el = document.createElement('div');
-    el.className = 'hc-linea';
-    el.textContent = linea;
-    doc.appendChild(el);
-  }
-}
-
-async function generarHC() {
-  
-  const diagnostico = v('diagnostico');
-  if (!diagnostico) { mostrarError('El diagnóstico es obligatorio.'); return; }
-
-  // Validar campos obligatorios
-  if (!v('fechaIngreso')) { mostrarError('La fecha de ingreso es obligatoria.'); return; }
-  if (!v('fechaEgreso')) { mostrarError('La fecha de egreso es obligatoria.'); return; }
-  const _total = parseInt(document.getElementById('diasTotal').value) || 0;
-  const _sala  = parseInt(document.getElementById('diasSala').value) || 0;
-  const _uco   = parseInt(document.getElementById('diasUCO').value) || 0;
-  const _uti   = parseInt(document.getElementById('diasUTI').value) || 0;
-  if (_total === 0) { mostrarError('Ingresá las fechas para calcular los días de internación.'); return; }
-  if ((_sala + _uco + _uti) === 0) { mostrarError('Ingresá los días por sector (Sala, UCO, UTI).'); return; }
-
-  const total = parseInt(document.getElementById('diasTotal').value) || 0;
-  const sala  = parseInt(document.getElementById('diasSala').value) || 0;
-  const uco   = parseInt(document.getElementById('diasUCO').value) || 0;
-  const uti   = parseInt(document.getElementById('diasUTI').value) || 0;
-  if (total > 0 && (sala + uco + uti) !== total) {
-    mostrarError('Los días por sector (' + (sala+uco+uti) + ') no coinciden con el total (' + total + '). Corregí antes de continuar.');
-    return;
-  }
-
-  const nombre = v('nombre') || 'No informado';
-  const dni    = v('dni') || 'No informado';
-  const edad   = v('edad') || 'No informada';
-  const sexo   = v('sexo') || 'No informado';
-  const os     = v('obraSocial') || 'No informada';
-  const medico = 'No informado';
-  const fi     = v('fechaIngreso') || 'No informada';
-  const fe     = v('fechaEgreso') || 'No informada';
-  const egreso = v('condicionEgreso') || 'No informada';
-
-  const prompt = `Sos un médico clínico con amplia experiencia en documentación hospitalaria argentina. Generá una Historia Clínica de internación completa y clínicamente coherente.
-
-DATOS:
-Nombre: ${nombre} | DNI: ${dni} | Edad: ${edad} | Sexo: ${sexo} | Obra Social: ${os}
-Médico Tratante: ${medico} | Ingreso: ${fi} | Egreso: ${fe} | Total: ${total} días
-Sala: ${sala} días | UCO: ${uco} días | UTI: ${uti} días | Egreso: ${egreso}
-Diagnóstico: ${diagnostico}
-
-FORMATO OBLIGATORIO - MUY IMPORTANTE:
-- PROHIBIDO ABSOLUTO: usar #, ##, **, *, ---, guiones como viñetas, ni barras | para tablas
-- Solo texto plano limpio, como documento médico impreso en papel
-- Títulos de sección en MAYÚSCULAS en su propia línea
-- Datos en líneas simples: "Apellido y Nombre: García Juan"
-- Laboratorio en líneas simples: "Hemoglobina: 14.2 g/dL" (NO en tabla)
-
-ESTRUCTURA:
-
-SANATORIO NORTE S.R.L.
-HISTORIA CLÍNICA DE INTERNACIÓN
-
-DATOS DEL PACIENTE:
-Apellido y Nombre: ${nombre}
-DNI: ${dni}
-Edad: ${edad}
-Sexo: ${sexo}
-Obra Social: ${os}
-Médico Tratante: ${medico}
-Fecha de Ingreso: ${fi}
-Fecha de Egreso: ${fe}
-Días de internación: ${total} (Sala: ${sala} / UCO: ${uco} / UTI: ${uti})
-Condición de Egreso: ${egreso}
-
-MOTIVO DE CONSULTA:
-(texto narrativo)
-
-ENFERMEDAD ACTUAL:
-(texto narrativo)
-
-ANTECEDENTES PERSONALES:
-(texto narrativo - sin antecedentes familiares - sin medicación habitual)
-
-EXAMEN FÍSICO DE INGRESO - ${fi}:
-Tensión Arterial: ...
-Frecuencia Cardíaca: ...
-Frecuencia Respiratoria: ...
-Temperatura: ...
-Saturación O2: ...
-(hallazgos relevantes en líneas)
-
-ESTUDIOS COMPLEMENTARIOS:
-
-Laboratorio - ${fi}:
-(cada valor en su línea, sin tabla)
-Hemoglucotest: X mg/dL
-
-(Imágenes y otros estudios en texto narrativo)
-
-EVOLUCIÓN CLÍNICA:
-(Comenzar desde Día 2. NO incluir día de ingreso. Para cada día:)
-Día N - fecha - Sector:
-(descripción clínica SIN valores de laboratorio, solo conceptos generales)
-Tratamiento:
-(medicación con dosis y vía, una por línea)
-
-DIAGNÓSTICOS:
-Principal: ...
-Secundarios: ...
-
-EPICRISIS:
-(texto narrativo completo)`;
-
-  // La API key NO está en el código. Se pide al usuario y se guarda en el navegador
-  // (localStorage), así nunca queda en el repositorio público.
-  const apiKey = obtenerApiKey();
-  if (!apiKey) {
-    mostrarError('Configurá tu API key de Claude / Anthropic (botón "🔑 Configurar API key") para generar la historia.');
-    return;
-  }
-
-  const btn = document.getElementById('btnGenerar');
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div> Generando Historia Clínica...';
-  document.getElementById('errorMsg').style.display = 'none';
-
-  try {
-    // Llamada directa a la API de Mensajes de Claude (Anthropic) desde el navegador.
-    // El header 'anthropic-dangerous-direct-browser-access' habilita el acceso por CORS.
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-opus-4-8',   // modelo más capaz; cambiar a 'claude-haiku-4-5' para abaratar
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    const data = await res.json();
-    if (data.error) { mostrarError('Error API: ' + (data.error.message || data.error.type)); return; }
-
-    // La respuesta de Claude viene en data.content[] (bloques); tomamos el texto.
-    const texto = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('') || '';
-    renderizarHC(texto);
-    document.getElementById('resultado-wrap').style.display = 'block';
-    document.getElementById('resultado-wrap').scrollIntoView({ behavior: 'smooth' });
-
-  } catch (err) {
-    mostrarError('Error de conexión: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> GENERAR HISTORIA CLÍNICA';
-  }
-}
-
-function generarPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  
-  const margenIzq = 20;
-  const margenDer = 20;
-  const anchoUtil = 210 - margenIzq - margenDer;
-  let y = 20;
-  const lineaAltura = 6;
-
-  function agregarTexto(texto, opciones = {}) {
-    const fontSize = opciones.fontSize || 10;
-    const bold = opciones.bold || false;
-    const center = opciones.center || false;
-    
-    doc.setFontSize(fontSize);
-    doc.setFont('helvetica', bold ? 'bold' : 'normal');
-    
-    const lineas = doc.splitTextToSize(texto, anchoUtil);
-    
-    if (y + (lineas.length * lineaAltura) > 280) {
-      doc.addPage();
-      y = 20;
-    }
-    
-    if (center) {
-      lineas.forEach(linea => {
-        doc.text(linea, 105, y, { align: 'center' });
-        y += lineaAltura;
-      });
-    } else {
-      doc.text(lineas, margenIzq, y);
-      y += lineas.length * lineaAltura;
-    }
-  }
-
-  // Obtener contenido del resultado
-  const divDoc = document.getElementById('resultado-doc');
-  if (!divDoc || divDoc.children.length === 0) {
-    alert('Primero generá la Historia Clínica.');
-    return;
-  }
-
-  const elementos = divDoc.children;
-  for (let el of elementos) {
-    const texto = el.textContent.trim();
-    if (!texto) continue;
-
-    if (el.classList.contains('hc-titulo')) {
-      agregarTexto(texto, { fontSize: 14, bold: true, center: true });
-      y += 2;
-    } else if (el.classList.contains('hc-subtitulo')) {
-      agregarTexto(texto, { fontSize: 12, bold: true, center: true });
-      y += 4;
-      doc.setDrawColor(26, 46, 74);
-      doc.setLineWidth(0.5);
-      doc.line(margenIzq, y, 210 - margenDer, y);
-      y += 4;
-    } else if (el.classList.contains('hc-seccion')) {
-      y += 3;
-      agregarTexto(texto, { fontSize: 11, bold: true });
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.3);
-      doc.line(margenIzq, y, 210 - margenDer, y);
-      y += 3;
-    } else {
-      agregarTexto(texto, { fontSize: 10 });
-    }
-  }
-
-  doc.save('HistoriaClinica-' + (document.getElementById('nombre')?.value || 'Paciente') + '.pdf');
-}
-
-function nuevaHC() {
-  ['nombre','dni','edad','obraSocial','medico','fechaIngreso','fechaEgreso','diagnostico'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  document.getElementById('sexo').value = '';
-  document.getElementById('condicionEgreso').value = '';
-  ['diasTotal','diasSala','diasUCO','diasUTI'].forEach(id => document.getElementById(id).value = '0');
-  document.getElementById('diasAviso').className = 'dias-aviso';
-  document.getElementById('resultado-wrap').style.display = 'none';
-  document.getElementById('errorMsg').style.display = 'none';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-/* =========================================================================
-   MÓDULO 2 — AUDITORÍA DE HISTORIAS CLÍNICAS POR LOTE
-   Todo lo de abajo es nuevo. No modifica la generación de HC (Módulo 1).
-   - Extracción de texto: PDF.js (cliente, 0 tokens)
-   - Validaciones: determinísticas por reglas (0 tokens)
-   - Reporte: ExcelJS (.xlsx)
-   ========================================================================= */
-
-// Configurar el worker de PDF.js (necesario para que funcione en el navegador)
+/* ============================================================
+   CONFIGURACIÓN PDF.js
+   ============================================================ */
 if (window.pdfjsLib) {
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
 
-let _archivosAuditar = [];   // File[] seleccionados
-let _resultadosAuditar = []; // resultados de la última auditoría (para el Excel)
+const MODELO = 'claude-sonnet-4-6';
+const API_URL = 'https://api.anthropic.com/v1/messages';
 
-/* ---------- Navegación entre pestañas principales ---------- */
-function cambiarTab(tab) {
-  const esGenerar = tab === 'generar';
-  document.getElementById('tab-generar').classList.toggle('activo', esGenerar);
-  document.getElementById('tab-auditar').classList.toggle('activo', !esGenerar);
-  document.getElementById('tabBtnGenerar').classList.toggle('activo', esGenerar);
-  document.getElementById('tabBtnAuditar').classList.toggle('activo', !esGenerar);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+/* ============================================================
+   ALMACENAMIENTO SEGURO
+   localStorage puede estar bloqueado al abrir el archivo con
+   doble clic (protocolo file://) o en modo incógnito. En ese
+   caso usamos una copia en memoria para que la app NO se rompa.
+   ============================================================ */
+let _memStore = {};          // respaldo en memoria
+let _storageOK = true;       // ¿localStorage disponible?
+(function testStorage(){
+  try {
+    localStorage.setItem('__test__','1');
+    localStorage.removeItem('__test__');
+    _storageOK = true;
+  } catch(e){
+    _storageOK = false;
+  }
+})();
+function storeGet(k){
+  if (_storageOK){ try { return localStorage.getItem(k); } catch(e){ _storageOK=false; } }
+  return (k in _memStore) ? _memStore[k] : null;
+}
+function storeSet(k,v){
+  _memStore[k] = v;
+  if (_storageOK){ try { localStorage.setItem(k,v); } catch(e){ _storageOK=false; } }
+}
+function storeDel(k){
+  delete _memStore[k];
+  if (_storageOK){ try { localStorage.removeItem(k); } catch(e){ _storageOK=false; } }
 }
 
-/* ---------- Selector de fuente (Local / Drive) ---------- */
-function cambiarFuente(f) {
-  const esLocal = f === 'local';
-  document.getElementById('fuente-local').style.display = esLocal ? 'block' : 'none';
-  document.getElementById('fuente-drive').style.display = esLocal ? 'none' : 'block';
-  document.getElementById('fuenteLocal').classList.toggle('activo', esLocal);
-  document.getElementById('fuenteDrive').classList.toggle('activo', !esLocal);
+/* ============================================================
+   GESTIÓN DE API KEY
+   ============================================================ */
+function getKey(){ return storeGet('anthropicKey') || ''; }
+
+function refrescarEstadoKey(){
+  const k = getKey();
+  const dot = document.getElementById('keyDot');
+  const txt = document.getElementById('keyTxt');
+  if (!dot || !txt) return;        // guarda defensiva
+  if (k){
+    dot.classList.add('on');
+    txt.textContent = '🔑 API key configurada';
+  } else {
+    dot.classList.remove('on');
+    txt.textContent = '🔑 Configurar API key';
+  }
+}
+function abrirModalKey(){
+  document.getElementById('inpKey').value = getKey();
+  document.getElementById('keyMsg').innerHTML = _storageOK ? '' :
+    msgHTML('warn','Este navegador no permite guardar datos al abrir el archivo con doble clic (file://). La key funcionará en esta sesión, pero deberás volver a cargarla la próxima vez que abras el archivo.');
+  document.getElementById('modalKey').classList.add('show');
+}
+function cerrarModalKey(){ document.getElementById('modalKey').classList.remove('show'); }
+function guardarKey(){
+  const v = document.getElementById('inpKey').value.trim();
+  const box = document.getElementById('keyMsg');
+  if (!v){ box.innerHTML = msgHTML('err','Ingresá una API key válida.'); return; }
+  storeSet('anthropicKey', v);
+  const persiste = _storageOK ? 'guardada correctamente.' : 'guardada para esta sesión (no se recordará al cerrar, por estar abierto como file://).';
+  if (!v.startsWith('sk-ant-')){
+    box.innerHTML = msgHTML('warn','La key no empieza con "sk-ant-". Verificá que sea correcta. Se '+persiste);
+  } else {
+    box.innerHTML = msgHTML('ok','API key '+persiste);
+  }
+  refrescarEstadoKey();
+  setTimeout(cerrarModalKey, 1100);
+}
+function borrarKey(){
+  storeDel('anthropicKey');
+  document.getElementById('inpKey').value = '';
+  document.getElementById('keyMsg').innerHTML = msgHTML('info','API key eliminada de este navegador.');
+  refrescarEstadoKey();
 }
 
-/* ---------- Mostrar/ocultar campos de período ---------- */
-function togglePeriodo() {
-  const tipo = document.getElementById('periodoTipo').value;
-  document.getElementById('periodoMesWrap').style.display  = tipo === 'mes' ? 'block' : 'none';
-  document.getElementById('periodoTrimWrap').style.display = tipo === 'trimestre' ? 'block' : 'none';
-  document.getElementById('periodoAnioWrap').style.display = tipo === 'trimestre' ? 'block' : 'none';
+/* ============================================================
+   UTILIDADES UI
+   ============================================================ */
+function msgHTML(tipo, texto, lista){
+  const ico = {ok:'✅',err:'❌',warn:'⚠️',info:'ℹ️'}[tipo] || 'ℹ️';
+  let h = `<div class="msg ${tipo}"><span>${ico}</span><div><div>${texto}</div>`;
+  if (lista && lista.length){
+    h += '<ul>' + lista.map(x=>`<li>${x}</li>`).join('') + '</ul>';
+  }
+  h += '</div></div>';
+  return h;
+}
+function cambiarTab(t){
+  document.getElementById('tab-gen').classList.toggle('active', t==='gen');
+  document.getElementById('tab-aud').classList.toggle('active', t==='aud');
+  document.getElementById('panel-gen').classList.toggle('active', t==='gen');
+  document.getElementById('panel-aud').classList.toggle('active', t==='aud');
 }
 
-/* ---------- Selección de archivos (input + drag & drop) ---------- */
-function archivosSeleccionados(fileList) {
-  _archivosAuditar = Array.from(fileList).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
-  const cont = document.getElementById('listaArchivos');
-  cont.innerHTML = '';
-  _archivosAuditar.forEach(f => {
-    const div = document.createElement('div');
-    div.className = 'arch';
-    div.innerHTML = '📄 <span>' + f.name + '</span> <span style="color:#a0aec0; margin-left:auto;">' + (f.size / 1024).toFixed(0) + ' KB</span>';
-    cont.appendChild(div);
+/* ============================================================
+   MÓDULO 1 — CÁLCULO DE DÍAS Y VALIDACIONES
+   ============================================================ */
+function calcularDias(){
+  const ing = document.getElementById('f_ingreso').value;
+  const egr = document.getElementById('f_egreso').value;
+  let total = null;
+  if (ing && egr){
+    const d1 = new Date(ing), d2 = new Date(egr);
+    const diff = Math.round((d2 - d1) / 86400000);
+    total = diff;
+    document.getElementById('f_total').value = (diff >= 0 ? diff + ' días' : 'Egreso < Ingreso ❌');
+    document.getElementById('boxTotal').textContent = diff >= 0 ? diff : '!';
+  } else {
+    document.getElementById('f_total').value = '—';
+    document.getElementById('boxTotal').textContent = '0';
+  }
+  // Suma sala + uti/uco
+  const sala   = +document.getElementById('f_sala').value || 0;
+  const utiuco = +document.getElementById('f_utiuco').value || 0;
+  const suma = sala + utiuco;
+  const chip = document.getElementById('sumaChip');
+  chip.textContent = `Suma Sala+UTI/UCO: ${suma}`;
+  if (total !== null && total >= 0){
+    const coincide = (suma === total);
+    chip.className = 'suma-chip ' + (coincide ? 'ok' : 'bad');
+    chip.textContent = `Suma Sala+UTI/UCO: ${suma} ${coincide ? '= '+total+' ✓' : '≠ '+total+' ✗'}`;
+  } else {
+    chip.className = 'suma-chip ok';
+  }
+  return {total, sala, utiuco, suma};
+}
+
+function validarFormulario(){
+  const errores = [];
+  const nombre = document.getElementById('f_nombre').value.trim();
+  const dni    = document.getElementById('f_dni').value.trim();
+  const os     = document.getElementById('f_os').value.trim();
+  const diag   = document.getElementById('f_diag').value.trim();
+  const ing    = document.getElementById('f_ingreso').value;
+  const egr    = document.getElementById('f_egreso').value;
+
+  if (!nombre) errores.push('El nombre y apellido es obligatorio.');
+  if (!dni)    errores.push('El DNI es obligatorio.');
+  if (!os)     errores.push('La obra social es obligatoria.');
+  if (!diag)   errores.push('El diagnóstico no puede estar vacío.');
+  if (!ing)    errores.push('La fecha de internación es obligatoria.');
+  if (!egr)    errores.push('La fecha de egreso/alta es obligatoria.');
+
+  const d = calcularDias();
+  if (ing && egr){
+    if (d.total < 0) errores.push('La fecha de egreso no puede ser anterior a la de ingreso.');
+    // VALIDACIÓN CRÍTICA: suma de días = total
+    else if (d.suma !== d.total){
+      errores.push(`La suma de días (Sala ${d.sala} + UTI/UCO ${d.utiuco} = ${d.suma}) debe ser igual al total de internación (${d.total} días).`);
+    }
+  }
+  return errores;
+}
+
+function recolectarDatos(){
+  const d = calcularDias();
+  return {
+    nombre: document.getElementById('f_nombre').value.trim(),
+    dni:    document.getElementById('f_dni').value.trim(),
+    os:     document.getElementById('f_os').value.trim(),
+    antec:  document.getElementById('f_antec').value.trim() || '(sin antecedentes relevantes)',
+    diag:   document.getElementById('f_diag').value.trim(),
+    ingreso:document.getElementById('f_ingreso').value,
+    egreso: document.getElementById('f_egreso').value,
+    total:  d.total, sala:d.sala, utiuco:d.utiuco
+  };
+}
+
+/* ============================================================
+   MÓDULO 1 — PROMPT Y LLAMADA A CLAUDE
+   ============================================================ */
+function construirPrompt(x){
+  return `Sos un médico clínico con amplia experiencia en documentación hospitalaria argentina.
+
+DATOS:
+Nombre: ${x.nombre}
+DNI: ${x.dni}
+Obra Social: ${x.os}
+Antecedentes: ${x.antec}
+Diagnóstico: ${x.diag}
+Fecha Ingreso: ${x.ingreso}
+Fecha Egreso: ${x.egreso}
+Total días: ${x.total} (Sala: ${x.sala} / UTI-UCO: ${x.utiuco})
+
+Generá una Historia Clínica de internación COMPLETA, profesional y clínicamente coherente.
+
+ESTRUCTURA OBLIGATORIA (texto plano limpio, SIN MARKDOWN):
+
+SANATORIO NORTE S.R.L.
+HISTORIA CLÍNICA DE INTERNACIÓN
+
+DATOS DEL PACIENTE:
+Apellido y Nombre: ${x.nombre}
+DNI: ${x.dni}
+Obra Social: ${x.os}
+Fecha de Ingreso: ${x.ingreso}
+Fecha de Egreso: ${x.egreso}
+Días de internación: ${x.total} (Sala: ${x.sala} / UTI-UCO: ${x.utiuco})
+
+ANTECEDENTES:
+${x.antec}
+(Transcribí ÚNICAMENTE los antecedentes indicados arriba. NO agregues frases sobre alergias medicamentosas ni sobre internaciones previas. Tampoco inventes datos sobre nivel de comprensión o colaboración del paciente.)
+
+DIAGNÓSTICO PRINCIPAL:
+${x.diag}
+
+ANTECEDENTE DE ENFERMEDAD ACTUAL:
+[Relatá de forma concisa la enfermedad actual: forma de inicio, tiempo de evolución, síntomas principales y motivo de consulta que motivaron la internación, todo coherente con el diagnóstico de ingreso "${x.diag}". NO incluyas aquí la justificación del nivel de cuidados ni el detalle de los pases entre sectores; eso va únicamente en la EVOLUCIÓN CLÍNICA.]
+
+EXAMEN FÍSICO DE INGRESO:
+Tensión Arterial: [valores coherentes con diagnóstico]
+Frecuencia Cardíaca: [valores coherentes]
+Frecuencia Respiratoria: [valores coherentes]
+Temperatura: [valores coherentes]
+Saturación O2: [valores coherentes]
+
+ESTUDIOS COMPLEMENTARIOS:
+Diagnóstico por imágenes:
+[Indicá los estudios por imágenes APROPIADOS para el diagnóstico de ingreso "${x.diag}", seleccionados según las guías internacionales vigentes (por ejemplo: IAM → ecocardiograma Doppler y cinecoronariografía; ACV → TC de cráneo y/o RMN de encéfalo, angio-TC; neumonía → radiografía de tórax y, si corresponde, TC; TEP → angio-TC de tórax; abdomen agudo → ecografía y/o TC abdominopelviana; litiasis renal → ecografía / TC sin contraste; patología osteoarticular → radiografía / RMN).]
+[Para CADA estudio escribí ÚNICAMENTE como un informe radiológico real: nombre de la modalidad, fecha (formato dd/mm/aaaa) y, en el renglón siguiente, la DESCRIPCIÓN de los hallazgos tal como aparecería en un informe médico. NO escribas la palabra "Justificación" ni expliques por qué se pidió el estudio. NO uses el rótulo "Hallazgos:"; escribí directamente la descripción.]
+[Los estudios por imágenes de control se REPITEN CADA 72 HORAS durante la internación (estudio inicial al ingreso y controles a las 72 h, 144 h, etc., según los ${x.total} días totales), cada uno con su fecha y su descripción radiológica, sin texto de justificación.]
+[NO incluyas Laboratorio, NO incluyas ECG / electrocardiograma, NO incluyas hemocultivos, NO incluyas urocultivo.]
+
+EVOLUCIÓN CLÍNICA:
+[Día a día desde día 2 hasta egreso, coherente con el diagnóstico. En cada día indicá el sector de internación (UTI/UCO o Sala General), de forma consistente con los días asignados a cada sector y con las transiciones descritas, incluyendo posibles pases en ambos sentidos (Sala General → área crítica → Sala General). Justificá cada cambio de sector con el criterio clínico correspondiente.]
+[En la evolución del día correspondiente, indicá cuándo se SOLICITA cada estudio por imágenes (el inicial y los controles cada 72 h) y JUSTIFICÁ clínicamente por qué se pide ese estudio ese día (motivo del pedido: control evolutivo, deterioro o mejoría clínica, seguimiento de hallazgos, descartar complicación, etc.). La justificación del pedido va SIEMPRE en la evolución diaria, NO en el informe de la imagen.]
+[Tratamiento recibido]
+[Respuesta al tratamiento]
+
+EPICRISIS:
+[Resumen profesional de la internación]
+
+IMPORTANTE: Respondé ÚNICAMENTE con el texto de la Historia Clínica, sin comentarios adicionales, sin markdown, sin asteriscos ni almohadillas.
+IMPORTANTE: En ANTECEDENTES no menciones alergias medicamentosas ni internaciones previas (ni para afirmarlas ni para negarlas), salvo que estén explícitamente en los antecedentes provistos.
+IMPORTANTE: En ESTUDIOS COMPLEMENTARIOS está PROHIBIDO incluir laboratorio, ECG/electrocardiograma, hemocultivos y urocultivo. Esa sección debe contener EXCLUSIVAMENTE diagnóstico por imágenes, redactadas como un informe radiológico (modalidad, fecha y descripción de hallazgos), con controles cada 72 horas, SIN texto de justificación y SIN el rótulo "Hallazgos:". La justificación de POR QUÉ se solicitó cada estudio va en la EVOLUCIÓN CLÍNICA del día en que se pide, NO en esta sección.
+IMPORTANTE: La estadía en UTI/UCO y en Sala General debe quedar debidamente justificada ÚNICAMENTE en la EVOLUCIÓN CLÍNICA (no en ANTECEDENTE DE ENFERMEDAD ACTUAL), según los criterios de ingreso de las guías internacionales, asociados al diagnóstico de ingreso. El paciente puede pasar entre sectores en ambos sentidos y más de una vez (Sala → área crítica → Sala). Usá la terminología clínica de cuidados críticos que corresponda (inestabilidad hemodinámica, AVM, VNI, CNAF, complicaciones metabólicas, monitoreo coronario, drogas vasoactivas, etc.).`;
+}
+
+async function llamarClaude(prompt){
+  const key = getKey();
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: MODELO,
+      max_tokens: 4000,
+      messages: [ { role:'user', content: prompt } ]
+    })
   });
-  if (_archivosAuditar.length === 0) {
-    cont.innerHTML = '<div style="color:#a0aec0; font-size:12px;">No se seleccionaron PDFs.</div>';
+
+  if (!resp.ok){
+    let detalle = '';
+    try { const e = await resp.json(); detalle = e.error?.message || JSON.stringify(e); }
+    catch(_) { detalle = 'HTTP ' + resp.status; }
+    throw new Error(detalle);
+  }
+  const data = await resp.json();
+  // data.content[] -> filtrar bloques type:"text" -> concatenar
+  const texto = (data.content || [])
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('\n')
+    .trim();
+  if (!texto) throw new Error('La respuesta de Claude no contenía texto.');
+  return texto;
+}
+
+let _hcTextoActual = '';
+let _hcDatosActual = null;
+
+async function generarHC(){
+  const box = document.getElementById('genMsg');
+  document.getElementById('hcPreview').style.display = 'none';
+
+  // 1) API key
+  if (!getKey()){
+    box.innerHTML = msgHTML('err','No hay API key configurada. Hacé clic en "🔑 Configurar API key" arriba a la derecha.');
+    abrirModalKey();
+    return;
+  }
+  // 2) Validaciones
+  const errores = validarFormulario();
+  if (errores.length){
+    box.innerHTML = msgHTML('err','No se puede generar la Historia Clínica. Corregí lo siguiente:', errores);
+    return;
+  }
+
+  // 3) Construir prompt + llamar
+  const datos = recolectarDatos();
+  _hcDatosActual = datos;
+  const prompt = construirPrompt(datos);
+
+  const btn = document.getElementById('btnGenerar');
+  btn.disabled = true;
+  const txtOriginal = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Generando con Claude...';
+  box.innerHTML = msgHTML('info','Contactando a Claude (claude-sonnet-4-6)... esto puede tardar unos segundos.');
+
+  try {
+    const texto = await llamarClaude(prompt);
+    // BLINDAJE DETERMINÍSTICO: la sección ANTECEDENTES se reemplaza
+    // por el texto exacto cargado por el usuario (no lo que invente Claude).
+    let textoFinal = blindarAntecedentes(texto, datos.antec);
+    textoFinal = filtrarEstudios(textoFinal);
+    _hcTextoActual = textoFinal;
+    renderizarHC(textoFinal);
+    box.innerHTML = msgHTML('ok','Historia Clínica generada correctamente. Ya podés descargarla en PDF o Word.');
+    document.getElementById('hcPreview').scrollIntoView({behavior:'smooth', block:'start'});
+  } catch(err){
+    let extra = '';
+    if (/401|authentication|invalid x-api-key/i.test(err.message))
+      extra = ' Verificá que tu API key sea válida.';
+    else if (/cors|failed to fetch|networkerror/i.test(err.message))
+      extra = ' Puede ser un problema de red o de CORS del navegador.';
+    box.innerHTML = msgHTML('err','Error al generar la Historia Clínica: ' + err.message + extra);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = txtOriginal;
   }
 }
 
-// Drag & drop sobre la zona
-(function initDropzone() {
-  const dz = document.getElementById('dropzone');
-  if (!dz) return;
-  ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => {
-    e.preventDefault(); dz.classList.add('drag');
-  }));
-  ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => {
-    e.preventDefault(); dz.classList.remove('drag');
-  }));
-  dz.addEventListener('drop', e => {
-    if (e.dataTransfer && e.dataTransfer.files) archivosSeleccionados(e.dataTransfer.files);
-  });
-})();
+/* ============================================================
+   MÓDULO 1 — RENDERIZADO EN HTML
+   ============================================================ */
+function renderizarHC(texto){
+  const lineas = texto.split('\n');
+  let html = '';
+  let tituloPuesto = false, subtituloPuesto = false;
 
-/* ---------- Extracción de texto de un PDF con PDF.js ---------- */
-async function extraerTextoPDF(file) {
-  const buffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  for (let i = 0; i < lineas.length; i++){
+    const raw = lineas[i];
+    const linea = raw.trim();
+    if (linea === ''){ html += '<div class="hc-vacia"></div>'; continue; }
+
+    // Primera línea con "SANATORIO" -> título
+    if (!tituloPuesto && /SANATORIO/i.test(linea)){
+      html += `<div class="hc-titulo">${escapeHTML(linea)}</div>`;
+      tituloPuesto = true;
+      continue;
+    }
+    // Línea siguiente al título -> subtítulo
+    if (tituloPuesto && !subtituloPuesto){
+      html += `<div class="hc-subtitulo">${escapeHTML(linea)}</div>`;
+      subtituloPuesto = true;
+      continue;
+    }
+    // Líneas en MAYÚSCULAS (encabezados de sección)
+    if (esSeccion(linea)){
+      html += `<div class="hc-seccion">${escapeHTML(linea)}</div>`;
+      continue;
+    }
+    // Resto
+    html += `<div class="hc-linea">${escapeHTML(raw)}</div>`;
+  }
+  document.getElementById('hcDoc').innerHTML = html;
+  document.getElementById('hcPreview').style.display = 'block';
+}
+
+/* Reemplaza el contenido de la sección ANTECEDENTES por el texto
+   exacto provisto por el usuario. Garantiza que ahí no aparezca
+   nada inventado por el modelo (alergias, internaciones previas, etc.) */
+function blindarAntecedentes(texto, antec){
+  const lineas = texto.split('\n');
+  let start = -1;
+  for (let i = 0; i < lineas.length; i++){
+    if (/^ANTECEDENTES\s*:?\s*$/i.test(lineas[i].trim())){ start = i; break; }
+  }
+  if (start === -1) return texto;            // no se encontró la sección: devolver tal cual
+  // Buscar el fin: la siguiente sección (encabezado en MAYÚSCULAS terminado en ":")
+  let end = lineas.length;
+  for (let j = start + 1; j < lineas.length; j++){
+    if (esLimiteSeccion(lineas[j])){ end = j; break; }
+  }
+  return lineas.slice(0, start + 1)
+    .concat([antec, ''])                     // texto exacto del usuario + línea en blanco
+    .concat(lineas.slice(end))
+    .join('\n');
+}
+
+/* Filtra la sección ESTUDIOS COMPLEMENTARIOS: elimina cualquier
+   línea referida a laboratorio, ECG, hemocultivos o urocultivo
+   (incluyendo los analitos de laboratorio). */
+function filtrarEstudios(texto){
+  const lineas = texto.split('\n');
+  let start = -1;
+  for (let i = 0; i < lineas.length; i++){
+    if (/^ESTUDIOS COMPLEMENTARIOS\s*:?\s*$/i.test(lineas[i].trim())){ start = i; break; }
+  }
+  if (start === -1) return texto;
+  let end = lineas.length;
+  for (let j = start + 1; j < lineas.length; j++){
+    if (esLimiteSeccion(lineas[j])){ end = j; break; }
+  }
+  const prohibido = /laboratorio|electrocardiograma|\becg\b|hemocultivo|urocultivo|hemoglobina|hematocrito|gluc[eo]mia|creatinin|\burea\b|uremia|leucocit|plaqueta|eritrosediment|ionograma|tropon|hemograma|coagulograma|\btgo\b|\btgp\b|\bgot\b|\bgpt\b/i;
+  // Eliminar también líneas de "Justificación:" (las imágenes deben leerse
+  // como un informe radiológico, sin texto de justificación) y quitar el
+  // rótulo "Hallazgos:" dejando solo la descripción del estudio.
+  let cuerpo = lineas.slice(start + 1, end)
+    .filter(l => l.trim() === '' || (!prohibido.test(l) && !/^\s*justificaci[oó]n\s*:/i.test(l)))
+    .map(l => l.replace(/^\s*hallazgos\s*:\s*/i, ''));
+  // colapsar líneas en blanco repetidas y bordes
+  const limpio = [];
+  cuerpo.forEach(l => {
+    if (l.trim() === '' && (limpio.length === 0 || limpio[limpio.length - 1].trim() === '')) return;
+    limpio.push(l);
+  });
+  while (limpio.length && limpio[limpio.length - 1].trim() === '') limpio.pop();
+  if (limpio.length === 0) limpio.push('Sin estudios complementarios relevantes para informar.');
+  return lineas.slice(0, start + 1).concat(limpio, ['']).concat(lineas.slice(end)).join('\n');
+}
+
+function esSeccion(linea){
+  // Mayúsculas, sin minúsculas, con cierta longitud y normalmente termina en ":"
+  const sinAcentos = linea.normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const tieneMinus = /[a-z]/.test(sinAcentos);
+  const tieneLetras = /[A-ZÁÉÍÓÚÑ]/.test(linea);
+  return !tieneMinus && tieneLetras && linea.length <= 60 && linea.length >= 3;
+}
+
+/* Límite de sección para los filtros: encabezado en MAYÚSCULAS que
+   TERMINA EN ":". Así "HTA, ACV SECUELAR" (contenido en mayúsculas)
+   NO se confunde con un encabezado de sección. */
+function esLimiteSeccion(linea){
+  const t = linea.trim();
+  return /:$/.test(t) && esSeccion(t);
+}
+
+function escapeHTML(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function nuevaHC(){
+  ['f_nombre','f_dni','f_os','f_antec','f_diag','f_ingreso','f_egreso'].forEach(id=>document.getElementById(id).value='');
+  ['f_sala','f_utiuco'].forEach(id=>document.getElementById(id).value='0');
+  document.getElementById('f_total').value = '—';
+  document.getElementById('boxTotal').textContent = '0';
+  calcularDias();
+  document.getElementById('genMsg').innerHTML = '';
+  document.getElementById('hcPreview').style.display = 'none';
+  _hcTextoActual = ''; _hcDatosActual = null;
+  document.getElementById('f_nombre').focus();
+}
+
+/* ============================================================
+   MÓDULO 1 — DESCARGA PDF (jsPDF)
+   ============================================================ */
+function descargarPDF(){
+  if (!_hcTextoActual){ return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+
+  const margen = 20;            // 20mm
+  const anchoUtil = 210 - margen*2;
+  let y = margen;
+  const lineaAlto = 5.2;
+
+  const lineas = _hcTextoActual.split('\n');
+  let tituloPuesto=false, subtituloPuesto=false;
+
+  lineas.forEach(raw=>{
+    const linea = raw.trim();
+    if (linea===''){ y += lineaAlto*0.6; return; }
+
+    let size=11, font='normal', color=[45,55,72], texto=raw;
+    if (!tituloPuesto && /SANATORIO/i.test(linea)){
+      size=14; font='bold'; color=[26,46,74]; tituloPuesto=true;
+      escribirCentrado(doc, linea, size, font, color, y); y+=lineaAlto*1.6; return;
+    }
+    if (tituloPuesto && !subtituloPuesto){
+      size=12; font='bold'; color=[43,108,176]; subtituloPuesto=true;
+      escribirCentrado(doc, linea, size, font, color, y); y+=lineaAlto*1.6; return;
+    }
+    if (esSeccion(linea)){ size=11.5; font='bold'; color=[26,46,74]; texto=linea; y+=lineaAlto*0.5; }
+
+    doc.setFont('helvetica', font);
+    doc.setFontSize(size);
+    doc.setTextColor(color[0],color[1],color[2]);
+
+    const wrapped = doc.splitTextToSize(texto, anchoUtil);
+    wrapped.forEach(w=>{
+      if (y > 297 - margen){ doc.addPage(); y = margen; }
+      doc.text(w, margen, y);
+      y += lineaAlto;
+    });
+  });
+
+  const nombre = (_hcDatosActual?.nombre || 'paciente').replace(/[^\w]+/g,'_');
+  doc.save(`HC_${nombre}.pdf`);
+}
+function escribirCentrado(doc, texto, size, font, color, y){
+  doc.setFont('helvetica', font);
+  doc.setFontSize(size);
+  doc.setTextColor(color[0],color[1],color[2]);
+  doc.text(texto, 105, y, {align:'center'});
+}
+
+/* ============================================================
+   MÓDULO 1 — DESCARGA WORD (docx.js)
+   ============================================================ */
+function descargarWord(){
+  if (!_hcTextoActual){ return; }
+  const { Document, Packer, Paragraph, TextRun, AlignmentType } = window.docx;
+
+  const lineas = _hcTextoActual.split('\n');
+  const parrafos = [];
+  let tituloPuesto=false, subtituloPuesto=false;
+
+  lineas.forEach(raw=>{
+    const linea = raw.trim();
+    if (linea===''){ parrafos.push(new Paragraph({children:[new TextRun('')]})); return; }
+
+    if (!tituloPuesto && /SANATORIO/i.test(linea)){
+      tituloPuesto=true;
+      parrafos.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing:{after:80},
+        children:[new TextRun({text:linea, bold:true, size:30, color:'1A2E4A'})]
+      })); return;
+    }
+    if (tituloPuesto && !subtituloPuesto){
+      subtituloPuesto=true;
+      parrafos.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing:{after:220}, border:{bottom:{color:'2B6CB0',size:6,space:6,style:'single'}},
+        children:[new TextRun({text:linea, bold:true, size:24, color:'2B6CB0'})]
+      })); return;
+    }
+    if (esSeccion(linea)){
+      parrafos.push(new Paragraph({
+        spacing:{before:200, after:60},
+        children:[new TextRun({text:linea, bold:true, size:23, color:'1A2E4A'})]
+      })); return;
+    }
+    parrafos.push(new Paragraph({
+      spacing:{after:20},
+      children:[new TextRun({text:raw, size:22, color:'2D3748'})]
+    }));
+  });
+
+  const doc = new Document({ sections:[{ properties:{}, children:parrafos }] });
+  Packer.toBlob(doc).then(blob=>{
+    const nombre = (_hcDatosActual?.nombre || 'paciente').replace(/[^\w]+/g,'_');
+    descargarBlob(blob, `HC_${nombre}.docx`);
+  });
+}
+function descargarBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+}
+
+/* ============================================================
+   MÓDULO 2 — AUDITORÍA DE PDFs
+   ============================================================ */
+let _archivos = [];        // {name, file}
+let _resultados = [];      // {archivo, items:[{check,estado,detalle}]}
+
+const dz = document.getElementById('dropzone');
+['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev, e=>{e.preventDefault();dz.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev, e=>{e.preventDefault();dz.classList.remove('drag');}));
+dz.addEventListener('drop', e=>{ onFiles(e.dataTransfer.files); });
+
+function onFiles(fileList){
+  const arr = Array.from(fileList).filter(f=>f.type==='application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+  arr.forEach(f=>{
+    if (!_archivos.some(a=>a.name===f.name && a.file.size===f.size))
+      _archivos.push({name:f.name, file:f});
+  });
+  renderFileList();
+}
+function renderFileList(){
+  const cont = document.getElementById('fileList');
+  cont.innerHTML = _archivos.map((a,i)=>`
+    <div class="file-item">
+      <span>📄</span>
+      <span class="nm" title="${escapeHTML(a.name)}">${escapeHTML(a.name)}</span>
+      <span style="color:var(--gris-suave);font-size:12px">${(a.file.size/1024).toFixed(0)} KB</span>
+      <button class="rm" onclick="quitarArchivo(${i})" title="Quitar">×</button>
+    </div>`).join('');
+  document.getElementById('btnAuditar').disabled = _archivos.length === 0;
+}
+function quitarArchivo(i){ _archivos.splice(i,1); renderFileList(); }
+function limpiarAuditoria(){
+  _archivos = []; _resultados = [];
+  document.getElementById('fileInput').value = '';
+  renderFileList();
+  document.getElementById('audMsg').innerHTML = '';
+  document.getElementById('audResultados').innerHTML = '';
+  document.getElementById('btnExcel').style.display = 'none';
+}
+
+async function extraerTexto(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
   let texto = '';
-  for (let p = 1; p <= pdf.numPages; p++) {
+  for (let p=1; p<=pdf.numPages; p++){
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
-    texto += content.items.map(it => it.str).join(' ') + '\n';
+    texto += content.items.map(it=>it.str).join(' ') + '\n';
   }
   return texto;
 }
 
-/* ---------- Utilidades de normalización ---------- */
-function normalizar(t) {
-  return (t || '').toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, ''); // quita acentos (diacriticos combinantes)
-}
-
-// Cuenta cuántas "evoluciones diarias" aparecen (heurística por patrón "Día N" o fechas en sección de evolución)
-function contarEvoluciones(textoNorm) {
-  const porDia = (textoNorm.match(/\bdia\s*\d{1,2}\b/g) || []).length;
-  const porFecha = (textoNorm.match(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g) || []).length;
-  return Math.max(porDia, porFecha >= 2 ? porFecha : 0);
-}
-
-/* ---------- VALIDACIONES DETERMINÍSTICAS (0 tokens) ----------
-   Cada chequeo agrega un error con su severidad si no se cumple.
-   Severidades: CRÍTICO > ADVERTENCIA > MENOR
------------------------------------------------------------------- */
-function validarHistoria(textoOriginal, nombreArchivo) {
-  const t = normalizar(textoOriginal);
-  const errores = [];
-  const add = (sev, msg) => errores.push({ sev, msg });
-
-  // --- Datos identificatorios ---
-  // Nombre del paciente: "Apellido y Nombre:" / "Paciente:" — captura hasta DNI/Edad/etc.
-  let nombre = '';
-  let m = textoOriginal.match(/(?:apellido\s*y\s*nombre|nombre\s*y\s*apellido|paciente)\s*:?\s*([A-Za-zÁÉÍÓÚÑáéíóúñ.,\s]{3,60}?)(?=\s+(?:dni|d\.?n\.?i|documento|edad|sexo|fecha|obra\s*social)|\s*\d|$)/i);
-  if (m) nombre = m[1].trim().replace(/[,\s]+$/, '').replace(/\s{2,}/g, ' ');
-  if (!nombre) add('CRÍTICO', 'Falta nombre del paciente');
-
-  // Número de historia clínica (admite "N:", "N°", "Nro:", "HC:", etc.)
-  let nroHistoria = '';
-  m = textoOriginal.match(/(?:historia\s*cl[ií]nica|h\.?\s*c\.?|n[º°ro]*\s*historia)\s*[:.\-]?\s*(?:n[º°ro]*\s*[:.\-]?\s*)?(\d[\d.\-\/]{2,15})/i);
-  if (m) nroHistoria = m[1].trim();
-  if (!nroHistoria) add('CRÍTICO', 'Falta número de historia clínica');
-
-  // Fecha de ingreso + validez de formato
-  let fechaIngreso = '';
-  m = textoOriginal.match(/(?:fecha\s*de\s*ingreso|ingreso)\s*:?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
-  if (m) {
-    fechaIngreso = m[1];
-    if (!esFechaValida(fechaIngreso)) add('MENOR', 'Fecha de ingreso con formato inválido (' + fechaIngreso + ')');
-  } else {
-    add('ADVERTENCIA', 'No se detectó fecha de ingreso');
-  }
-
-  // --- Secciones obligatorias ---
-  const secciones = [
-    { clave: ['historia clinica de ingreso', 'anamnesis', 'motivo de consulta', 'enfermedad actual', 'examen fisico de ingreso'], nombre: 'Historia Clínica de Ingreso', sev: 'CRÍTICO' },
-    { clave: ['evolucion', 'evoluciones'], nombre: 'Evoluciones Diarias', sev: 'ADVERTENCIA' },
-    { clave: ['epicrisis', 'resumen de egreso'], nombre: 'Epicrisis', sev: 'CRÍTICO' },
-    { clave: ['enfermeria', 'registro de enfermeria', 'hoja de enfermeria'], nombre: 'Registros de Enfermería', sev: 'ADVERTENCIA' },
-    { clave: ['laboratorio', 'estudios complementarios', 'examenes complementarios', 'radiografia', 'ecografia', 'tomografia'], nombre: 'Exámenes Complementarios', sev: 'ADVERTENCIA' }
-  ];
-  secciones.forEach(s => {
-    const presente = s.clave.some(k => t.includes(normalizar(k)));
-    if (!presente) add(s.sev, 'Falta sección: ' + s.nombre);
-  });
-
-  // Mínimo 2 evoluciones diarias
-  const nEvol = contarEvoluciones(t);
-  if (nEvol < 2) add('ADVERTENCIA', 'Menos de 2 evoluciones diarias (detectadas: ' + nEvol + ')');
-
-  // Firma del médico
-  const firma = /(firma|sello|m\.?p\.?\s*\d|matricula|dr\.|dra\.)/i.test(textoOriginal);
-  if (!firma) add('ADVERTENCIA', 'No se detecta firma/sello del médico');
-
-  // Datos vitales: TA, FC, FR, Temp, SatO2
-  const vitales = [
-    { k: /(tension\s*arterial|\bta\b|\bt\.?a\.?\b|presion\s*arterial)/i, n: 'TA' },
-    { k: /(frecuencia\s*cardiaca|\bfc\b|f\.?c\.?)/i, n: 'FC' },
-    { k: /(frecuencia\s*respiratoria|\bfr\b|f\.?r\.?)/i, n: 'FR' },
-    { k: /(temperatura|\btemp\b|\bt[º°]\b)/i, n: 'Temp' },
-    { k: /(saturacion|sat\.?\s*o2|spo2|sato2)/i, n: 'SatO2' }
-  ];
-  const faltanVitales = vitales.filter(v => !v.k.test(textoOriginal)).map(v => v.n);
-  if (faltanVitales.length === vitales.length) {
-    add('CRÍTICO', 'No se registran datos vitales');
-  } else if (faltanVitales.length > 0) {
-    add('MENOR', 'Faltan signos vitales: ' + faltanVitales.join(', '));
-  }
-
-  // --- Determinar estado y severidad global ---
-  const tieneCritico = errores.some(e => e.sev === 'CRÍTICO');
-  const tieneAdv = errores.some(e => e.sev === 'ADVERTENCIA');
-  let estado, severidad;
-  if (errores.length === 0) { estado = '✅ COMPLETA'; severidad = '—'; }
-  else if (tieneCritico)    { estado = '❌ ERRORES';   severidad = 'CRÍTICO'; }
-  else if (tieneAdv)        { estado = '⚠️ INCOMPLETA'; severidad = 'ADVERTENCIA'; }
-  else                      { estado = '⚠️ INCOMPLETA'; severidad = 'MENOR'; }
-
-  return {
-    archivo: nombreArchivo,
-    paciente: nombre || '(no detectado)',
-    nroHistoria: nroHistoria || '(no detectado)',
-    fechaIngreso: fechaIngreso || '(no detectada)',
-    estado, severidad,
-    errores: errores.map(e => '[' + e.sev + '] ' + e.msg)
+/* Validaciones determinísticas sobre el texto extraído */
+function validarTextoHC(texto){
+  const t = texto.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const items = [];
+  const chk = (nombre, ok, detalleOk, detalleBad, esWarn) => {
+    items.push({
+      check: nombre,
+      estado: ok ? 'ok' : (esWarn ? 'warn':'bad'),
+      detalle: ok ? detalleOk : detalleBad
+    });
   };
+
+  // Secciones esperadas
+  chk('Datos del paciente', /datos del paciente|apellido y nombre|paciente/.test(t), 'Presente', 'No se encontró sección de datos del paciente');
+  chk('DNI', /\bdni\b|documento/.test(t) && /\d{7,8}/.test(t), 'DNI presente', 'No se detectó DNI', true);
+  chk('Diagnóstico', /diagnostico/.test(t), 'Presente', 'Falta diagnóstico', false);
+  chk('Antecedentes', /antecedentes/.test(t), 'Presente', 'No se mencionan antecedentes', true);
+  chk('Examen físico', /examen fisico|tension arterial|frecuencia cardiaca|saturacion/.test(t), 'Presente', 'No se encontró examen físico', true);
+
+  // Signos vitales
+  chk('Tensión arterial', /tension arterial|t\.?a\.?\s*\d|\d{2,3}\s*\/\s*\d{2,3}/.test(t), 'Registrada', 'Sin tensión arterial', true);
+  chk('Frecuencia cardíaca', /frecuencia cardiaca|fc\s*\d|\d{2,3}\s*lpm/.test(t), 'Registrada', 'Sin frecuencia cardíaca', true);
+  chk('Saturación O2', /saturacion|sat\s*o2|spo2|\d{2,3}\s*%/.test(t), 'Registrada', 'Sin saturación O2', true);
+  chk('Temperatura', /temperatura|\b3[5-9][.,]\d\s*º?c?|\b4[01][.,]\d/.test(t), 'Registrada', 'Sin temperatura', true);
+
+  // Estudios y evolución
+  chk('Estudios complementarios', /estudios complementarios|laboratorio|hemoglobina|glucemia|creatinina/.test(t), 'Presente', 'Sin estudios complementarios', true);
+  chk('Evolución clínica', /evolucion/.test(t), 'Presente', 'Falta evolución clínica', false);
+  chk('Epicrisis', /epicrisis|resumen de internacion|al alta/.test(t), 'Presente', 'Falta epicrisis', false);
+
+  // Fechas
+  const tieneFechas = /\d{2,4}[-\/]\d{1,2}[-\/]\d{1,4}|\d{1,2} de [a-z]+/.test(t);
+  chk('Fechas de internación', tieneFechas, 'Detectadas', 'No se detectaron fechas', true);
+
+  // Resumen
+  const total = items.length;
+  const oks = items.filter(i=>i.estado==='ok').length;
+  const crit = items.filter(i=>i.estado==='bad').length;
+  return { items, total, oks, crit };
 }
 
-// Valida que una fecha dd/mm/aaaa sea real
-function esFechaValida(str) {
-  const m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-  if (!m) return false;
-  let [_, d, mes, a] = m; d = +d; mes = +mes; a = +a;
-  if (a < 100) a += 2000;
-  if (mes < 1 || mes > 12 || d < 1 || d > 31) return false;
-  const f = new Date(a, mes - 1, d);
-  return f.getFullYear() === a && f.getMonth() === mes - 1 && f.getDate() === d;
-}
-
-// Devuelve true si la fecha de ingreso cae dentro del período seleccionado
-function dentroDePeriodo(fechaIngreso) {
-  const tipo = document.getElementById('periodoTipo').value;
-  if (tipo === 'todos') return true;
-  const m = fechaIngreso.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-  if (!m) return true; // sin fecha detectable -> se incluye siempre
-  let d = +m[1], mes = +m[2], a = +m[3]; if (a < 100) a += 2000;
-
-  if (tipo === 'mes') {
-    const val = document.getElementById('periodoMes').value; // "2026-06"
-    if (!val) return true;
-    const [ay, am] = val.split('-').map(Number);
-    return a === ay && mes === am;
-  }
-  if (tipo === 'trimestre') {
-    const tr = +document.getElementById('periodoTrim').value;
-    const anio = +document.getElementById('periodoAnio').value;
-    const trimDeMes = Math.ceil(mes / 3);
-    if (anio && a !== anio) return false;
-    return trimDeMes === tr;
-  }
-  return true;
-}
-
-/* ---------- AUDITAR LOTE (orquestador) ---------- */
-async function auditarLote() {
-  const err = document.getElementById('errorAuditar');
-  err.style.display = 'none';
-
-  if (_archivosAuditar.length === 0) {
-    err.textContent = '⚠️ Seleccioná al menos un PDF para auditar.';
-    err.style.display = 'block';
-    return;
-  }
-
+async function auditar(){
+  if (_archivos.length===0) return;
   const btn = document.getElementById('btnAuditar');
+  const msg = document.getElementById('audMsg');
   btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div> Auditando…';
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Procesando PDFs...';
+  msg.innerHTML = msgHTML('info','Extrayendo texto y aplicando validaciones...');
 
-  const wrap = document.getElementById('progresoWrap');
-  const fill = document.getElementById('progresoFill');
-  const txt  = document.getElementById('progresoTexto');
-  wrap.style.display = 'block';
-
-  _resultadosAuditar = [];
-  const total = _archivosAuditar.length;
-
-  for (let i = 0; i < total; i++) {
-    const file = _archivosAuditar[i];
-    txt.textContent = 'Procesando ' + (i + 1) + ' de ' + total + ': ' + file.name;
-    fill.style.width = ((i / total) * 100) + '%';
-    try {
-      const texto = await extraerTextoPDF(file);
-      const r = validarHistoria(texto, file.name);
-      if (dentroDePeriodo(r.fechaIngreso)) _resultadosAuditar.push(r);
-    } catch (e) {
-      _resultadosAuditar.push({
-        archivo: file.name, paciente: '(error de lectura)', nroHistoria: '—',
-        fechaIngreso: '—', estado: '❌ ERRORES', severidad: 'CRÍTICO',
-        errores: ['No se pudo leer el PDF: ' + e.message]
-      });
+  _resultados = [];
+  try {
+    for (const a of _archivos){
+      let res;
+      try {
+        const texto = await extraerTexto(a.file);
+        res = validarTextoHC(texto);
+        res.error = null;
+      } catch(e){
+        res = { items:[], total:0, oks:0, crit:1, error:'No se pudo leer el PDF: '+e.message };
+      }
+      _resultados.push({ archivo:a.name, ...res });
     }
-    // ceder el hilo para que la UI repinte la barra
-    await new Promise(r => setTimeout(r, 10));
+    renderResultados();
+    const totalCrit = _resultados.reduce((s,r)=>s+r.crit,0);
+    msg.innerHTML = totalCrit === 0
+      ? msgHTML('ok',`Auditoría completada. ${_resultados.length} documento(s) analizado(s), sin faltantes críticos.`)
+      : msgHTML('warn',`Auditoría completada. Se detectaron ${totalCrit} faltante(s) crítico(s) en total. Revisá la tabla.`);
+    document.getElementById('btnExcel').style.display = 'inline-flex';
+  } catch(err){
+    msg.innerHTML = msgHTML('err','Error en la auditoría: '+err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
   }
-
-  fill.style.width = '100%';
-  txt.textContent = 'Auditoría completa: ' + _resultadosAuditar.length + ' historia(s).';
-
-  /* ====== HOOK para análisis con IA (desactivado por decisión del usuario) ======
-     Acá iría 1 sola llamada por lote a Claude (Anthropic) para
-     validar coherencia indicaciones médicas vs registros de enfermería y
-     exámenes solicitados vs realizados. Se deja preparado:
-
-     // await analizarLoteConIA(_resultadosAuditar, textosExtraidos);
-  ============================================================================ */
-
-  renderResultados();
-  btn.disabled = false;
-  btn.innerHTML = '<svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M11 19a8 8 0 100-16 8 8 0 000 16zm10 2l-4.35-4.35" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> AUDITAR LOTE';
 }
 
-/* ---------- Renderizar tabla + resumen ---------- */
-function renderResultados() {
-  const tbody = document.getElementById('tablaBody');
-  tbody.innerHTML = '';
-
-  let comp = 0, inc = 0, errs = 0;
-  _resultadosAuditar.forEach(r => {
-    let badgeClase = 'completa';
-    if (r.estado.includes('ERRORES')) { badgeClase = 'errores'; errs++; }
-    else if (r.estado.includes('INCOMPLETA')) { badgeClase = 'incompleta'; inc++; }
-    else comp++;
-
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td>' + esc(r.paciente) + '</td>' +
-      '<td>' + esc(r.nroHistoria) + '</td>' +
-      '<td>' + esc(r.fechaIngreso) + '</td>' +
-      '<td><span class="badge ' + badgeClase + '">' + esc(r.estado) + '</span></td>' +
-      '<td>' + (r.errores.length ? r.errores.map(esc).join('<br/>') : '—') + '</td>' +
-      '<td>' + esc(r.severidad) + '</td>';
-    tbody.appendChild(tr);
+function renderResultados(){
+  const cont = document.getElementById('audResultados');
+  let html = '';
+  _resultados.forEach(r=>{
+    html += `<div class="audit-file-title">📄 ${escapeHTML(r.archivo)} — ${r.oks}/${r.total} OK ${r.crit?`· <span style="color:#9b2c2c">${r.crit} crítico(s)</span>`:''}</div>`;
+    if (r.error){
+      html += msgHTML('err', r.error);
+      return;
+    }
+    html += `<table><thead><tr><th>Validación</th><th>Estado</th><th>Detalle</th></tr></thead><tbody>`;
+    r.items.forEach(it=>{
+      const b = it.estado==='ok'?'ok':(it.estado==='warn'?'warn':'bad');
+      const lbl = it.estado==='ok'?'✔ OK':(it.estado==='warn'?'⚠ Atención':'✘ Falta');
+      html += `<tr><td>${escapeHTML(it.check)}</td><td><span class="badge ${b}">${lbl}</span></td><td>${escapeHTML(it.detalle)}</td></tr>`;
+    });
+    html += `</tbody></table>`;
   });
-
-  document.getElementById('numTotal').textContent = _resultadosAuditar.length;
-  document.getElementById('numCompletas').textContent = comp;
-  document.getElementById('numIncompletas').textContent = inc;
-  document.getElementById('numErrores').textContent = errs;
-
-  document.getElementById('resumenCards').style.display = 'grid';
-  document.getElementById('tablaResultados').style.display = 'block';
-  document.getElementById('tablaResultados').scrollIntoView({ behavior: 'smooth' });
+  cont.innerHTML = html;
 }
 
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-}
-
-/* ---------- Descargar reporte Excel (.xlsx) con ExcelJS ---------- */
-async function descargarExcel() {
-  if (_resultadosAuditar.length === 0) { alert('Primero ejecutá una auditoría.'); return; }
-
+/* ============================================================
+   MÓDULO 2 — REPORTE EXCEL (ExcelJS)
+   ============================================================ */
+async function descargarExcel(){
+  if (!_resultados.length) return;
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Sanatorio Norte S.R.L.';
-  wb.created = new Date();
   const ws = wb.addWorksheet('Auditoría HC');
 
   ws.columns = [
-    { header: 'Paciente (Apellido, Nombre)', key: 'paciente', width: 32 },
-    { header: 'N° Historia', key: 'nro', width: 16 },
-    { header: 'Fecha Ingreso', key: 'fecha', width: 14 },
-    { header: 'Estado', key: 'estado', width: 16 },
-    { header: 'Errores encontrados', key: 'errores', width: 60 },
-    { header: 'Severidad', key: 'severidad', width: 14 }
+    {header:'Archivo', key:'arch', width:38},
+    {header:'Validación', key:'chk', width:28},
+    {header:'Estado', key:'est', width:14},
+    {header:'Detalle', key:'det', width:46},
   ];
+  ws.getRow(1).font = {bold:true, color:{argb:'FFFFFFFF'}};
+  ws.getRow(1).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF1A2E4A'}};
 
-  // Encabezado con estilo
-  ws.getRow(1).eachCell(c => {
-    c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A2E4A' } };
-    c.alignment = { vertical: 'middle' };
-  });
-
-  _resultadosAuditar.forEach(r => {
-    const row = ws.addRow({
-      paciente: r.paciente,
-      nro: r.nroHistoria,
-      fecha: r.fechaIngreso,
-      estado: r.estado,
-      errores: r.errores.length ? r.errores.join('\n') : '—',
-      severidad: r.severidad
+  _resultados.forEach(r=>{
+    if (r.error){
+      ws.addRow({arch:r.archivo, chk:'(lectura)', est:'ERROR', det:r.error});
+      return;
+    }
+    r.items.forEach(it=>{
+      const estado = it.estado==='ok'?'OK':(it.estado==='warn'?'ATENCIÓN':'FALTA');
+      const row = ws.addRow({arch:r.archivo, chk:it.check, est:estado, det:it.detalle});
+      const color = it.estado==='ok'?'FF276749':(it.estado==='warn'?'FF975A16':'FF9B2C2C');
+      row.getCell('est').font = {bold:true, color:{argb:color}};
     });
-    row.getCell('errores').alignment = { wrapText: true, vertical: 'top' };
-    // Color según estado
-    let argb = 'FFF0FFF4';
-    if (r.estado.includes('ERRORES')) argb = 'FFFFF5F5';
-    else if (r.estado.includes('INCOMPLETA')) argb = 'FFFFFAF0';
-    row.getCell('estado').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } };
   });
+  ws.eachRow(row=>{ row.eachCell(c=>{ c.alignment={vertical:'top',wrapText:true}; }); });
 
   const buf = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'Auditoria_HC_' + new Date().toISOString().slice(0, 10) + '.xlsx';
-  a.click();
-  URL.revokeObjectURL(url);
+  const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const fecha = new Date().toISOString().slice(0,10);
+  descargarBlob(blob, `Auditoria_HC_${fecha}.xlsx`);
 }
 
-/* ---------- Google Drive (placeholder preparado) ----------
-   Para activarlo:
-   1) Crear proyecto en Google Cloud Console y habilitar "Google Drive API".
-   2) Crear OAuth 2.0 Client ID (tipo Web) con origen autorizado:
-        https://hcia.netlify.app
-   3) Cargar Google Identity Services + gapi y completar esta función para:
-        - autenticar al usuario,
-        - listar PDFs de la carpeta elegida (files.list),
-        - descargar cada PDF (files.get?alt=media) y pasarlo a extraerTextoPDF().
-   Nota: usar datos médicos requiere verificación de la app por parte de Google. */
-function conectarDrive() {
-  alert('La conexión con Google Drive todavía no está configurada.\n\n' +
-        'Requiere un OAuth Client ID de Google Cloud y verificación de la app ' +
-        '(por tratarse de datos médicos sensibles).\n\n' +
-        'Por ahora usá la opción "Subir archivos PDF", que ya es 100% funcional.');
-}
+/* ============================================================
+   INICIALIZACIÓN
+   ============================================================ */
+refrescarEstadoKey();
+calcularDias();
+document.getElementById('modalKey').addEventListener('click', e=>{
+  if (e.target.id==='modalKey') cerrarModalKey();
+});
 </script>
 </body>
 </html>
