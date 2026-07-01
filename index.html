@@ -316,7 +316,7 @@
   <div class="panel" id="panel-aud">
     <div class="card">
       <h2>🔎 Auditar Historias Clínicas</h2>
-      <p class="hint">Subí uno o más PDFs de Historias Clínicas. Auditoría <b>híbrida</b>: primero validaciones determinísticas (rápidas, offline) y luego, opcionalmente, auditoría con <b>IA (Claude)</b> que evalúa coherencia clínica y justificación del nivel de cuidados.</p>
+      <p class="hint">Subí uno o más PDFs de Historias Clínicas. Auditoría <b>híbrida</b> en un solo paso: validaciones determinísticas (rápidas, offline) + auditoría con <b>IA (Claude)</b> que evalúa coherencia clínica y justificación del nivel de cuidados. Si el PDF es <b>escaneado</b>, la IA lo lee como imágenes (visión).</p>
 
       <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
         <div class="ico">📂</div>
@@ -328,8 +328,7 @@
       <div class="file-list" id="fileList"></div>
 
       <div class="actions">
-        <button class="btn btn-primary" id="btnAuditar" onclick="auditar()" disabled>🔍 Auditar (reglas)</button>
-        <button class="btn btn-dark" id="btnAuditarIA" onclick="auditarConIA()" style="display:none">🤖 Auditar con IA (Claude)</button>
+        <button class="btn btn-primary" id="btnAuditar" onclick="auditar()" disabled>🔍 Auditar</button>
         <button class="btn btn-ghost" onclick="limpiarAuditoria()">🗑️ Limpiar</button>
         <button class="btn btn-dark" id="btnExcel" onclick="descargarExcel()" style="display:none">📊 Descargar reporte Excel</button>
       </div>
@@ -610,7 +609,8 @@ IMPORTANTE: En ESTUDIOS COMPLEMENTARIOS está PROHIBIDO incluir laboratorio, ECG
 IMPORTANTE: La estadía en UTI/UCO y en Sala General debe quedar debidamente justificada ÚNICAMENTE en la EVOLUCIÓN CLÍNICA (no en ANTECEDENTE DE ENFERMEDAD ACTUAL), según los criterios de ingreso de las guías internacionales, asociados al diagnóstico de ingreso. El paciente puede pasar entre sectores en ambos sentidos y más de una vez (Sala → área crítica → Sala). Usá la terminología clínica de cuidados críticos que corresponda (inestabilidad hemodinámica, AVM, VNI, CNAF, complicaciones metabólicas, monitoreo coronario, drogas vasoactivas, etc.).`;
 }
 
-async function llamarClaude(prompt){
+// contenido puede ser un string (texto) o un array de bloques (texto + imágenes)
+async function llamarClaude(contenido, maxTokens){
   const key = getKey();
   const resp = await fetch(API_URL, {
     method: 'POST',
@@ -622,8 +622,8 @@ async function llamarClaude(prompt){
     },
     body: JSON.stringify({
       model: MODELO,
-      max_tokens: 4000,
-      messages: [ { role:'user', content: prompt } ]
+      max_tokens: maxTokens || 4000,
+      messages: [ { role:'user', content: contenido } ]
     })
   });
 
@@ -982,6 +982,27 @@ async function extraerTexto(file){
   return texto;
 }
 
+/* Renderiza las páginas del PDF a imágenes JPEG base64 (para leer PDFs
+   escaneados con la visión de Claude). Devuelve {imgs:[base64], paginas, truncado}. */
+async function extraerPaginasComoImagenes(file, maxPag){
+  maxPag = maxPag || 8;
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  const n = Math.min(pdf.numPages, maxPag);
+  const imgs = [];
+  for (let p=1; p<=n; p++){
+    const page = await pdf.getPage(p);
+    const viewport = page.getViewport({scale:1.2});
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({canvasContext:ctx, viewport}).promise;
+    imgs.push(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]); // base64 sin prefijo
+  }
+  return { imgs, paginas: pdf.numPages, truncado: pdf.numPages > n };
+}
+
 /* Validaciones determinísticas sobre el texto extraído */
 function validarTextoHC(texto){
   const t = texto.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
@@ -1048,22 +1069,14 @@ function validarTextoHC(texto){
 /* ============================================================
    MÓDULO 2 — AUDITORÍA CON IA (Claude)
    ============================================================ */
-function construirPromptAuditoria(texto){
-  return `Sos un AUDITOR MÉDICO experto en documentación hospitalaria argentina. Auditá la siguiente Historia Clínica de internación y evaluá su calidad y consistencia clínica según criterios de auditoría médica y guías internacionales.
-
-Evaluá especialmente:
+const RUBRICA_AUDITORIA = `Evaluá especialmente:
 1. Completitud de las secciones obligatorias (datos del paciente, antecedentes, enfermedad actual, examen físico, diagnóstico, estudios por imágenes, evolución, epicrisis).
 2. Coherencia clínica entre diagnóstico, examen físico, estudios y evolución.
 3. Justificación del nivel de cuidados: ¿está fundamentada la internación en UTI/UCO y/o Sala General según criterios de ingreso (inestabilidad hemodinámica, AVM, VNI, CNAF, monitoreo, drogas vasoactivas, complicaciones metabólicas, etc.)?
 4. Coherencia de fechas y días de internación (Sala + UTI/UCO = total de días).
-5. Estudios por imágenes: ¿están fechados y es coherente su solicitud y seguimiento con la evolución?
+5. Estudios por imágenes: ¿están fechados y es coherente su solicitud y seguimiento con la evolución?`;
 
-HISTORIA CLÍNICA A AUDITAR:
-"""
-${texto.slice(0, 14000)}
-"""
-
-Respondé EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto fuera del JSON) con esta estructura EXACTA:
+const FORMATO_JSON_AUDITORIA = `Respondé EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto fuera del JSON) con esta estructura EXACTA:
 {
   "puntaje": <entero 0-100 de calidad/consistencia global>,
   "resumen": "<2-3 oraciones con la conclusión de la auditoría>",
@@ -1076,6 +1089,28 @@ Respondé EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto fue
     }
   ]
 }`;
+
+function construirPromptAuditoria(texto){
+  return `Sos un AUDITOR MÉDICO experto en documentación hospitalaria argentina. Auditá la siguiente Historia Clínica de internación y evaluá su calidad y consistencia clínica según criterios de auditoría médica y guías internacionales.
+
+${RUBRICA_AUDITORIA}
+
+HISTORIA CLÍNICA A AUDITAR:
+"""
+${texto.slice(0, 14000)}
+"""
+
+${FORMATO_JSON_AUDITORIA}`;
+}
+
+function construirPromptAuditoriaVision(){
+  return `Sos un AUDITOR MÉDICO experto en documentación hospitalaria argentina. A continuación se adjuntan, como IMÁGENES, las páginas de una Historia Clínica de internación (documento escaneado). LEÉ su contenido con atención (texto impreso y manuscrito) y auditá su calidad y consistencia clínica según criterios de auditoría médica y guías internacionales.
+
+${RUBRICA_AUDITORIA}
+
+Si alguna parte resulta ilegible, indicá esa limitación en las observaciones.
+
+${FORMATO_JSON_AUDITORIA}`;
 }
 
 function parseAuditoriaJSON(s){
@@ -1087,38 +1122,34 @@ function parseAuditoriaJSON(s){
   return obj;
 }
 
-async function auditarConIA(){
-  if (!_resultados.length) return;
-  const msg = document.getElementById('audMsg');
-  if (!getKey()){
-    msg.innerHTML = msgHTML('err','No hay API key configurada para la auditoría con IA. Hacé clic en "🔑 Configurar API key".');
-    abrirModalKey();
-    return;
-  }
-  const btn = document.getElementById('btnAuditarIA');
-  btn.disabled = true;
-  const orig = btn.innerHTML;
-  const auditar = _resultados.filter(r => !r.error && r.texto);
-  let hechos = 0;
-  for (const r of _resultados){
-    if (r.error || !r.texto){ r.ia = { error:'Sin texto para auditar (no se pudo leer el PDF).' }; continue; }
-    btn.innerHTML = `<span class="spinner"></span> IA ${++hechos}/${auditar.length}...`;
-    msg.innerHTML = msgHTML('info',`Auditando con IA: ${escapeHTML(r.archivo)} (${hechos}/${auditar.length})...`);
-    try {
-      const resp = await llamarClaude(construirPromptAuditoria(r.texto));
-      r.ia = parseAuditoriaJSON(resp);
-    } catch(e){
-      let extra = '';
-      if (/401|authentication|invalid x-api-key/i.test(e.message)) extra = ' Verificá tu API key.';
-      else if (/cors|failed to fetch|networkerror/i.test(e.message)) extra = ' Posible problema de red o CORS.';
-      r.ia = { error: e.message + extra };
+/* Auditoría con IA sobre un resultado ya extraído (fase 2 de auditar()) */
+async function auditarResultadoConIA(r, btn, msg, hechos, total){
+  if (r.error){ r.ia = { error:'No se pudo leer el PDF, no se puede auditar.' }; return; }
+  const usaVision = r.escaneado || !r.texto || r.texto.replace(/\s/g,'').length < 40;
+  btn.innerHTML = `<span class="spinner"></span> IA ${hechos}/${total}...`;
+  msg.innerHTML = msgHTML('info',`Auditando con IA${usaVision?' (leyendo imágenes)':''}: ${escapeHTML(r.archivo)} (${hechos}/${total})...`);
+  try {
+    let contenido;
+    if (usaVision){
+      // PDF escaneado: se leen las páginas como imágenes (visión de Claude)
+      const { imgs } = await extraerPaginasComoImagenes(r.file, 8);
+      if (!imgs.length) throw new Error('No se pudieron renderizar las páginas del PDF.');
+      contenido = [{ type:'text', text: construirPromptAuditoriaVision() }];
+      imgs.forEach(b64 => contenido.push({
+        type:'image', source:{ type:'base64', media_type:'image/jpeg', data:b64 }
+      }));
+    } else {
+      contenido = construirPromptAuditoria(r.texto);
     }
-    renderResultados();
+    const resp = await llamarClaude(contenido);
+    r.ia = parseAuditoriaJSON(resp);
+  } catch(e){
+    let extra = '';
+    if (/401|authentication|invalid x-api-key/i.test(e.message)) extra = ' Verificá tu API key.';
+    else if (/cors|failed to fetch|networkerror/i.test(e.message)) extra = ' Posible problema de red o CORS.';
+    r.ia = { error: e.message + extra };
   }
-  const conIA = _resultados.filter(r=>r.ia && !r.ia.error).length;
-  msg.innerHTML = msgHTML('ok',`Auditoría con IA completada en ${conIA} documento(s). El reporte Excel ahora incluye los hallazgos de la IA.`);
-  btn.disabled = false;
-  btn.innerHTML = orig;
+  renderResultados();
 }
 
 async function auditar(){
@@ -1127,30 +1158,56 @@ async function auditar(){
   const msg = document.getElementById('audMsg');
   btn.disabled = true;
   const orig = btn.innerHTML;
-  btn.innerHTML = '<span class="spinner"></span> Procesando PDFs...';
-  msg.innerHTML = msgHTML('info','Extrayendo texto y aplicando validaciones...');
 
-  _resultados = [];
   try {
+    // FASE 1: validaciones deterministicas
+    btn.innerHTML = '<span class="spinner"></span> Procesando PDFs...';
+    msg.innerHTML = msgHTML('info','Extrayendo texto y aplicando validaciones...');
+
+    _resultados = [];
     for (const a of _archivos){
       let res;
       try {
         const texto = await extraerTexto(a.file);
-        res = validarTextoHC(texto);
-        res.error = null;
-        res.texto = texto;            // se guarda para reutilizar en la auditoría con IA
+        const escaneado = texto.replace(/\s/g,'').length < 40;   // sin capa de texto real
+        if (escaneado){
+          res = { items:[], total:0, oks:0, crit:0, warns:0, escaneado:true, texto, error:null };
+        } else {
+          res = validarTextoHC(texto);
+          res.error = null;
+          res.texto = texto;          // se guarda para reutilizar en la auditoría con IA
+          res.escaneado = false;
+        }
       } catch(e){
         res = { items:[], total:0, oks:0, crit:1, error:'No se pudo leer el PDF: '+e.message };
       }
-      _resultados.push({ archivo:a.name, ...res });
+      _resultados.push({ archivo:a.name, file:a.file, ...res });
     }
     renderResultados();
-    const totalCrit = _resultados.reduce((s,r)=>s+r.crit,0);
-    msg.innerHTML = totalCrit === 0
-      ? msgHTML('ok',`Auditoría por reglas completada. ${_resultados.length} documento(s) analizado(s), sin faltantes críticos. Podés profundizar con "🤖 Auditar con IA".`)
-      : msgHTML('warn',`Auditoría por reglas completada. Se detectaron ${totalCrit} faltante(s) crítico(s) en total. Podés profundizar con "🤖 Auditar con IA".`);
     document.getElementById('btnExcel').style.display = 'inline-flex';
-    document.getElementById('btnAuditarIA').style.display = 'inline-flex';
+
+    // FASE 2: auditoría con IA (si hay API key configurada)
+    let notaIA = '';
+    if (!getKey()){
+      notaIA = ' Configurá tu "🔑 API key" para sumar la auditoría con IA.';
+    } else {
+      const auditables = _resultados.filter(r => !r.error);
+      let hechos = 0;
+      for (const r of _resultados){
+        if (r.error){ r.ia = { error:'No se pudo leer el PDF, no se puede auditar.' }; continue; }
+        hechos++;
+        await auditarResultadoConIA(r, btn, msg, hechos, auditables.length);
+      }
+      const conIA = _resultados.filter(r=>r.ia && !r.ia.error).length;
+      notaIA = ` Auditoría con IA completada en ${conIA} documento(s).`;
+    }
+
+    const totalCrit = _resultados.reduce((s,r)=>s+(r.crit||0),0);
+    const escaneados = _resultados.filter(r=>r.escaneado && (!r.ia || r.ia.error)).length;
+    const notaEsc = escaneados ? ` ${escaneados} PDF(s) escaneado(s) sin auditar por IA.` : '';
+    msg.innerHTML = totalCrit === 0
+      ? msgHTML('ok',`Auditoría completada. ${_resultados.length} documento(s) analizado(s), sin faltantes críticos.${notaIA}${notaEsc}`)
+      : msgHTML('warn',`Auditoría completada. Se detectaron ${totalCrit} faltante(s) crítico(s) en total.${notaIA}${notaEsc}`);
   } catch(err){
     msg.innerHTML = msgHTML('err','Error en la auditoría: '+err.message);
   } finally {
@@ -1163,9 +1220,17 @@ function renderResultados(){
   const cont = document.getElementById('audResultados');
   let html = '';
   _resultados.forEach(r=>{
-    html += `<div class="audit-file-title">📄 ${escapeHTML(r.archivo)} — ${r.oks}/${r.total} OK ${r.crit?`· <span style="color:#9b2c2c">${r.crit} crítico(s)</span>`:''}</div>`;
+    const resumen = r.error ? 'no se pudo leer'
+      : (r.escaneado ? 'PDF escaneado — auditar con IA'
+        : `${r.oks}/${r.total} OK ${r.crit?`· <span style="color:#9b2c2c">${r.crit} crítico(s)</span>`:''}`);
+    html += `<div class="audit-file-title">📄 ${escapeHTML(r.archivo)} — ${resumen}</div>`;
     if (r.error){
       html += msgHTML('err', r.error);
+      return;
+    }
+    if (r.escaneado){
+      html += msgHTML('info','PDF escaneado (sin capa de texto). Las validaciones por reglas no aplican; la auditoría con IA lee el documento como imágenes.');
+      if (r.ia){ html += renderIAHTML(r.ia); }
       return;
     }
     html += `<table><thead><tr><th>Validación</th><th>Estado</th><th>Detalle</th></tr></thead><tbody>`;
