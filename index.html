@@ -174,6 +174,15 @@
   .badge.warn{background:var(--warn-bg);color:var(--warn-tx)}
   .audit-file-title{font-weight:600;font-size:14px;margin:20px 0 0;color:var(--azul-oscuro)}
 
+  /* ===== Bloque Auditoría IA ===== */
+  .ia-box{margin-top:14px;border:1px solid #c3dafe;background:#f7faff;border-radius:12px;padding:14px 16px}
+  .ia-head{font-size:14px;font-weight:700;color:var(--azul-oscuro);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ia-score{font-weight:700;padding:2px 10px;border-radius:20px;font-size:13px}
+  .ia-score.ok{background:var(--ok-bg);color:var(--ok-tx)}
+  .ia-score.warn{background:var(--warn-bg);color:var(--warn-tx)}
+  .ia-score.bad{background:var(--err-bg);color:var(--err-tx)}
+  .ia-resumen{font-size:13px;color:var(--gris-texto);margin:8px 0 4px;font-style:italic}
+
   /* ===== Modal ===== */
   .modal-bg{position:fixed;inset:0;background:rgba(26,46,74,.55);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
   .modal-bg.show{display:flex}
@@ -307,7 +316,7 @@
   <div class="panel" id="panel-aud">
     <div class="card">
       <h2>🔎 Auditar Historias Clínicas</h2>
-      <p class="hint">Subí uno o más PDFs de Historias Clínicas. Se extrae el texto con PDF.js y se aplican validaciones determinísticas.</p>
+      <p class="hint">Subí uno o más PDFs de Historias Clínicas. Auditoría <b>híbrida</b>: primero validaciones determinísticas (rápidas, offline) y luego, opcionalmente, auditoría con <b>IA (Claude)</b> que evalúa coherencia clínica y justificación del nivel de cuidados.</p>
 
       <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
         <div class="ico">📂</div>
@@ -319,7 +328,8 @@
       <div class="file-list" id="fileList"></div>
 
       <div class="actions">
-        <button class="btn btn-primary" id="btnAuditar" onclick="auditar()" disabled>🔍 Auditar documentos</button>
+        <button class="btn btn-primary" id="btnAuditar" onclick="auditar()" disabled>🔍 Auditar (reglas)</button>
+        <button class="btn btn-dark" id="btnAuditarIA" onclick="auditarConIA()" style="display:none">🤖 Auditar con IA (Claude)</button>
         <button class="btn btn-ghost" onclick="limpiarAuditoria()">🗑️ Limpiar</button>
         <button class="btn btn-dark" id="btnExcel" onclick="descargarExcel()" style="display:none">📊 Descargar reporte Excel</button>
       </div>
@@ -984,33 +994,131 @@ function validarTextoHC(texto){
     });
   };
 
-  // Secciones esperadas
-  chk('Datos del paciente', /datos del paciente|apellido y nombre|paciente/.test(t), 'Presente', 'No se encontró sección de datos del paciente');
-  chk('DNI', /\bdni\b|documento/.test(t) && /\d{7,8}/.test(t), 'DNI presente', 'No se detectó DNI', true);
-  chk('Diagnóstico', /diagnostico/.test(t), 'Presente', 'Falta diagnóstico', false);
+  // --- Secciones obligatorias ---
+  chk('Datos del paciente', /datos del paciente|apellido y nombre/.test(t), 'Presente', 'No se encontró sección de datos del paciente', false);
+  chk('DNI', (/\bdni\b|documento/.test(t)) && /\d{7,8}/.test(t), 'Presente', 'No se detectó DNI', true);
+  chk('Obra social', /obra social|\bo\.?s\.?\b|pami|swiss|osde|iapos|ioma|sancor/.test(t), 'Presente', 'No se detectó obra social', true);
+  chk('Diagnóstico principal', /diagnostico/.test(t), 'Presente', 'Falta diagnóstico', false);
   chk('Antecedentes', /antecedentes/.test(t), 'Presente', 'No se mencionan antecedentes', true);
+  chk('Enfermedad actual', /enfermedad actual/.test(t), 'Presente', 'Falta antecedente de enfermedad actual', true);
   chk('Examen físico', /examen fisico|tension arterial|frecuencia cardiaca|saturacion/.test(t), 'Presente', 'No se encontró examen físico', true);
 
-  // Signos vitales
+  // --- Signos vitales ---
   chk('Tensión arterial', /tension arterial|t\.?a\.?\s*\d|\d{2,3}\s*\/\s*\d{2,3}/.test(t), 'Registrada', 'Sin tensión arterial', true);
   chk('Frecuencia cardíaca', /frecuencia cardiaca|fc\s*\d|\d{2,3}\s*lpm/.test(t), 'Registrada', 'Sin frecuencia cardíaca', true);
   chk('Saturación O2', /saturacion|sat\s*o2|spo2|\d{2,3}\s*%/.test(t), 'Registrada', 'Sin saturación O2', true);
-  chk('Temperatura', /temperatura|\b3[5-9][.,]\d\s*º?c?|\b4[01][.,]\d/.test(t), 'Registrada', 'Sin temperatura', true);
+  chk('Temperatura', /temperatura|\b3[5-9][.,]\d|\b4[01][.,]\d/.test(t), 'Registrada', 'Sin temperatura', true);
 
-  // Estudios y evolución
-  chk('Estudios complementarios', /estudios complementarios|laboratorio|hemoglobina|glucemia|creatinina/.test(t), 'Presente', 'Sin estudios complementarios', true);
+  // --- Estudios por imágenes ---
+  chk('Diagnóstico por imágenes', /diagnostico por imagenes|tomografia|ecografia|radiografia|ecocardiograma|resonancia|angio-?tc|cinecoronariografia/.test(t), 'Presente', 'Sin estudios por imágenes', true);
+
+  // --- Evolución y cierre ---
   chk('Evolución clínica', /evolucion/.test(t), 'Presente', 'Falta evolución clínica', false);
   chk('Epicrisis', /epicrisis|resumen de internacion|al alta/.test(t), 'Presente', 'Falta epicrisis', false);
 
-  // Fechas
-  const tieneFechas = /\d{2,4}[-\/]\d{1,2}[-\/]\d{1,4}|\d{1,2} de [a-z]+/.test(t);
-  chk('Fechas de internación', tieneFechas, 'Detectadas', 'No se detectaron fechas', true);
+  // --- Fechas ---
+  const tieneIngreso = /ingreso|internacion/.test(t) && /\d{2,4}[-\/]\d{1,2}[-\/]\d{1,4}/.test(t);
+  chk('Fechas de internación', tieneIngreso, 'Detectadas', 'No se detectaron fechas de internación', true);
+  chk('Fecha de egreso/alta', /egreso|alta medica|alta hospitalaria|\balta\b/.test(t), 'Presente', 'No se detectó fecha de egreso/alta', true);
+
+  // --- Coherencia de días (Sala + UTI/UCO = total) ---
+  const md = t.match(/dias de internacion[:\s]*([0-9]+)\s*\(\s*sala[:\s]*([0-9]+)\s*\/\s*uti[\/\- ]?uco[:\s]*([0-9]+)\s*\)/);
+  if (md){
+    const tot = +md[1], sala = +md[2], uti = +md[3];
+    const ok = (sala + uti === tot);
+    chk('Coherencia de días', ok, `Sala ${sala} + UTI/UCO ${uti} = ${tot} días ✓`, `Sala ${sala} + UTI/UCO ${uti} = ${sala+uti} ≠ ${tot} días totales`, false);
+  } else {
+    chk('Coherencia de días', false, '', 'No se pudo verificar la coherencia de días (Sala + UTI/UCO = total)', true);
+  }
+
+  // --- Justificación de cuidados críticos (si hubo UTI/UCO) ---
+  if (/\buti\b|\buco\b|terapia intensiva|cuidados (intensivos|coronarios)|area critica/.test(t)){
+    const justifica = /inestabilidad hemodinamica|avm|asistencia ventilatoria|vni|ventilacion no invasiva|cnaf|alto flujo|drogas? vasoactiva|monitoreo (continuo|coronario|hemodinamico)|\bshock\b|sepsis|complicacion(es)? metabolica|arritmia/.test(t);
+    chk('Justificación de UTI/UCO', justifica, 'Criterios de cuidados críticos presentes', 'Se menciona UTI/UCO pero sin criterios de cuidados críticos que justifiquen el nivel de internación', false);
+  }
 
   // Resumen
   const total = items.length;
   const oks = items.filter(i=>i.estado==='ok').length;
   const crit = items.filter(i=>i.estado==='bad').length;
-  return { items, total, oks, crit };
+  const warns = items.filter(i=>i.estado==='warn').length;
+  return { items, total, oks, crit, warns };
+}
+
+/* ============================================================
+   MÓDULO 2 — AUDITORÍA CON IA (Claude)
+   ============================================================ */
+function construirPromptAuditoria(texto){
+  return `Sos un AUDITOR MÉDICO experto en documentación hospitalaria argentina. Auditá la siguiente Historia Clínica de internación y evaluá su calidad y consistencia clínica según criterios de auditoría médica y guías internacionales.
+
+Evaluá especialmente:
+1. Completitud de las secciones obligatorias (datos del paciente, antecedentes, enfermedad actual, examen físico, diagnóstico, estudios por imágenes, evolución, epicrisis).
+2. Coherencia clínica entre diagnóstico, examen físico, estudios y evolución.
+3. Justificación del nivel de cuidados: ¿está fundamentada la internación en UTI/UCO y/o Sala General según criterios de ingreso (inestabilidad hemodinámica, AVM, VNI, CNAF, monitoreo, drogas vasoactivas, complicaciones metabólicas, etc.)?
+4. Coherencia de fechas y días de internación (Sala + UTI/UCO = total de días).
+5. Estudios por imágenes: ¿están fechados y es coherente su solicitud y seguimiento con la evolución?
+
+HISTORIA CLÍNICA A AUDITAR:
+"""
+${texto.slice(0, 14000)}
+"""
+
+Respondé EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto fuera del JSON) con esta estructura EXACTA:
+{
+  "puntaje": <entero 0-100 de calidad/consistencia global>,
+  "resumen": "<2-3 oraciones con la conclusión de la auditoría>",
+  "hallazgos": [
+    {
+      "criterio": "<aspecto auditado>",
+      "estado": "<cumple|parcial|no_cumple>",
+      "severidad": "<ok|leve|moderado|critico>",
+      "observacion": "<comentario breve y concreto>"
+    }
+  ]
+}`;
+}
+
+function parseAuditoriaJSON(s){
+  const m = s.match(/\{[\s\S]*\}/);          // extrae el primer objeto JSON
+  if (!m) throw new Error('La IA no devolvió un JSON reconocible.');
+  const obj = JSON.parse(m[0]);
+  if (!Array.isArray(obj.hallazgos)) obj.hallazgos = [];
+  if (typeof obj.puntaje !== 'number') obj.puntaje = null;
+  return obj;
+}
+
+async function auditarConIA(){
+  if (!_resultados.length) return;
+  const msg = document.getElementById('audMsg');
+  if (!getKey()){
+    msg.innerHTML = msgHTML('err','No hay API key configurada para la auditoría con IA. Hacé clic en "🔑 Configurar API key".');
+    abrirModalKey();
+    return;
+  }
+  const btn = document.getElementById('btnAuditarIA');
+  btn.disabled = true;
+  const orig = btn.innerHTML;
+  const auditar = _resultados.filter(r => !r.error && r.texto);
+  let hechos = 0;
+  for (const r of _resultados){
+    if (r.error || !r.texto){ r.ia = { error:'Sin texto para auditar (no se pudo leer el PDF).' }; continue; }
+    btn.innerHTML = `<span class="spinner"></span> IA ${++hechos}/${auditar.length}...`;
+    msg.innerHTML = msgHTML('info',`Auditando con IA: ${escapeHTML(r.archivo)} (${hechos}/${auditar.length})...`);
+    try {
+      const resp = await llamarClaude(construirPromptAuditoria(r.texto));
+      r.ia = parseAuditoriaJSON(resp);
+    } catch(e){
+      let extra = '';
+      if (/401|authentication|invalid x-api-key/i.test(e.message)) extra = ' Verificá tu API key.';
+      else if (/cors|failed to fetch|networkerror/i.test(e.message)) extra = ' Posible problema de red o CORS.';
+      r.ia = { error: e.message + extra };
+    }
+    renderResultados();
+  }
+  const conIA = _resultados.filter(r=>r.ia && !r.ia.error).length;
+  msg.innerHTML = msgHTML('ok',`Auditoría con IA completada en ${conIA} documento(s). El reporte Excel ahora incluye los hallazgos de la IA.`);
+  btn.disabled = false;
+  btn.innerHTML = orig;
 }
 
 async function auditar(){
@@ -1030,6 +1138,7 @@ async function auditar(){
         const texto = await extraerTexto(a.file);
         res = validarTextoHC(texto);
         res.error = null;
+        res.texto = texto;            // se guarda para reutilizar en la auditoría con IA
       } catch(e){
         res = { items:[], total:0, oks:0, crit:1, error:'No se pudo leer el PDF: '+e.message };
       }
@@ -1038,9 +1147,10 @@ async function auditar(){
     renderResultados();
     const totalCrit = _resultados.reduce((s,r)=>s+r.crit,0);
     msg.innerHTML = totalCrit === 0
-      ? msgHTML('ok',`Auditoría completada. ${_resultados.length} documento(s) analizado(s), sin faltantes críticos.`)
-      : msgHTML('warn',`Auditoría completada. Se detectaron ${totalCrit} faltante(s) crítico(s) en total. Revisá la tabla.`);
+      ? msgHTML('ok',`Auditoría por reglas completada. ${_resultados.length} documento(s) analizado(s), sin faltantes críticos. Podés profundizar con "🤖 Auditar con IA".`)
+      : msgHTML('warn',`Auditoría por reglas completada. Se detectaron ${totalCrit} faltante(s) crítico(s) en total. Podés profundizar con "🤖 Auditar con IA".`);
     document.getElementById('btnExcel').style.display = 'inline-flex';
+    document.getElementById('btnAuditarIA').style.display = 'inline-flex';
   } catch(err){
     msg.innerHTML = msgHTML('err','Error en la auditoría: '+err.message);
   } finally {
@@ -1065,8 +1175,29 @@ function renderResultados(){
       html += `<tr><td>${escapeHTML(it.check)}</td><td><span class="badge ${b}">${lbl}</span></td><td>${escapeHTML(it.detalle)}</td></tr>`;
     });
     html += `</tbody></table>`;
+    if (r.ia){ html += renderIAHTML(r.ia); }
   });
   cont.innerHTML = html;
+}
+
+function renderIAHTML(ia){
+  if (ia.error) return msgHTML('warn','Auditoría con IA: ' + ia.error);
+  const p = ia.puntaje;
+  const cls = (p==null)?'warn':(p>=80?'ok':(p>=60?'warn':'bad'));
+  let h = `<div class="ia-box">`;
+  h += `<div class="ia-head">🤖 Auditoría IA (Claude) <span class="ia-score ${cls}">Puntaje: ${p==null?'—':p+'/100'}</span></div>`;
+  if (ia.resumen) h += `<div class="ia-resumen">${escapeHTML(ia.resumen)}</div>`;
+  if (ia.hallazgos && ia.hallazgos.length){
+    h += `<table><thead><tr><th>Criterio</th><th>Estado</th><th>Severidad</th><th>Observación</th></tr></thead><tbody>`;
+    ia.hallazgos.forEach(f=>{
+      const sev = (f.severidad||'').toLowerCase();
+      const badge = sev==='critico'?'bad':((sev==='moderado'||sev==='leve')?'warn':'ok');
+      h += `<tr><td>${escapeHTML(f.criterio||'')}</td><td>${escapeHTML(f.estado||'')}</td><td><span class="badge ${badge}">${escapeHTML(f.severidad||'—')}</span></td><td>${escapeHTML(f.observacion||'')}</td></tr>`;
+    });
+    h += `</tbody></table>`;
+  }
+  h += `</div>`;
+  return h;
 }
 
 /* ============================================================
@@ -1100,6 +1231,35 @@ async function descargarExcel(){
     });
   });
   ws.eachRow(row=>{ row.eachCell(c=>{ c.alignment={vertical:'top',wrapText:true}; }); });
+
+  // --- Hoja de Auditoría con IA (si se ejecutó) ---
+  const conIA = _resultados.some(r => r.ia);
+  if (conIA){
+    const ws2 = wb.addWorksheet('Auditoría IA');
+    ws2.columns = [
+      {header:'Archivo', key:'arch', width:34},
+      {header:'Puntaje', key:'pj', width:10},
+      {header:'Criterio', key:'cr', width:30},
+      {header:'Estado', key:'es', width:14},
+      {header:'Severidad', key:'sv', width:14},
+      {header:'Observación', key:'ob', width:50},
+    ];
+    ws2.getRow(1).font = {bold:true, color:{argb:'FFFFFFFF'}};
+    ws2.getRow(1).fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF2B6CB0'}};
+    _resultados.forEach(r=>{
+      if (!r.ia) return;
+      if (r.ia.error){ ws2.addRow({arch:r.archivo, pj:'', cr:'(IA)', es:'ERROR', sv:'', ob:r.ia.error}); return; }
+      const pj = (r.ia.puntaje==null)?'':r.ia.puntaje;
+      if (r.ia.resumen) ws2.addRow({arch:r.archivo, pj, cr:'RESUMEN', es:'', sv:'', ob:r.ia.resumen});
+      (r.ia.hallazgos||[]).forEach(f=>{
+        const row = ws2.addRow({arch:r.archivo, pj, cr:f.criterio||'', es:f.estado||'', sv:f.severidad||'', ob:f.observacion||''});
+        const sev = (f.severidad||'').toLowerCase();
+        const color = sev==='critico'?'FF9B2C2C':((sev==='moderado'||sev==='leve')?'FF975A16':'FF276749');
+        row.getCell('sv').font = {bold:true, color:{argb:color}};
+      });
+    });
+    ws2.eachRow(row=>{ row.eachCell(c=>{ c.alignment={vertical:'top',wrapText:true}; }); });
+  }
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
