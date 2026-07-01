@@ -315,8 +315,8 @@
   <!-- ====================================================== -->
   <div class="panel" id="panel-aud">
     <div class="card">
-      <h2>🔎 Auditar Historias Clínicas</h2>
-      <p class="hint">Subí uno o más PDFs de Historias Clínicas. Auditoría <b>híbrida</b> en un solo paso: validaciones determinísticas (rápidas, offline) + auditoría con <b>IA (Claude)</b> que evalúa coherencia clínica y justificación del nivel de cuidados. Si el PDF es <b>escaneado</b>, la IA lo lee como imágenes (visión).</p>
+      <h2>🔎 Auditar Expediente Clínico</h2>
+      <p class="hint">Subí uno o más PDFs del expediente (autorización, HC, indicaciones, enfermería, estudios, protocolo quirúrgico, consentimiento informado). Auditoría <b>híbrida</b> en un solo paso: validaciones determinísticas (rápidas, offline) + auditoría con <b>IA (Claude)</b> sobre 7 ejes mínimos: <b>1)</b> autorización y días solicitados, <b>2)</b> HC completa (ingreso, evoluciones, epicrisis), <b>3)</b> indicaciones médicas vs. ejecución de enfermería, <b>4)</b> controles de enfermería diarios, <b>5)</b> laboratorio e imágenes, <b>6)</b> protocolo quirúrgico y de anestesia, <b>7)</b> consentimiento informado. Si el PDF es <b>escaneado</b>, la IA lo lee como imágenes (hasta 100 páginas — expedientes largos pueden tardar más).</p>
 
       <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
         <div class="ico">📂</div>
@@ -1058,6 +1058,21 @@ function validarTextoHC(texto){
     chk('Justificación de UTI/UCO', justifica, 'Criterios de cuidados críticos presentes', 'Se menciona UTI/UCO pero sin criterios de cuidados críticos que justifiquen el nivel de internación', false);
   }
 
+  // --- Auditoría de expediente (chequeo rápido offline, 6 ejes) ---
+  chk('Autorización de internación', /\bautoriza|autorizacion|orden de internacion/.test(t), 'Se menciona autorización', 'No se detectó mención de autorización de internación', true);
+  const mDias = t.match(/dias?\s+(autorizados?|solicitados?)[:\s]*([0-9]+)|([0-9]+)\s*dias?\s+(autorizados?|solicitados?)/);
+  chk('Días autorizados/solicitados', !!mDias, `Detectado: "${mDias?mDias[0].trim():''}"`, 'No se detectó la cantidad de días autorizados/solicitados', true);
+  chk('Indicaciones médicas', /indicaciones medicas|orden medica|indicacion medica/.test(t), 'Presente', 'No se encontró sección de indicaciones médicas', true);
+  chk('Registro de enfermería (ejecución)', /hoja de enfermeria|registro de enfermeria|administracion de medicamentos|ejecucion de enfermeria/.test(t), 'Presente', 'No se encontró registro de ejecución de enfermería', true);
+  chk('Controles de enfermería', /control(es)? de enfermeria|curva (febril|de enfermeria)/.test(t), 'Presente', 'No se encontraron controles de enfermería', true);
+  chk('Estudios de laboratorio', /laboratorio|hemograma|glucemia|creatinina|hemoglobina/.test(t), 'Presente', 'No se encontraron estudios de laboratorio', true);
+  if (/cirugia|quirurgico|protocolo quirurgico|parte quirurgico/.test(t)){
+    chk('Protocolo de anestesia', /anestesia|anestesico|anestesiologo/.test(t), 'Presente', 'Se detectó cirugía pero no protocolo de anestesia', false);
+    chk('Consentimiento informado', /consentimiento informado/.test(t), 'Presente', 'Se detectó cirugía/procedimiento pero no consentimiento informado', false);
+  } else {
+    chk('Consentimiento informado', /consentimiento informado/.test(t), 'Presente', 'No se encontró consentimiento informado', true);
+  }
+
   // Resumen
   const total = items.length;
   const oks = items.filter(i=>i.estado==='ok').length;
@@ -1069,46 +1084,74 @@ function validarTextoHC(texto){
 /* ============================================================
    MÓDULO 2 — AUDITORÍA CON IA (Claude)
    ============================================================ */
-const RUBRICA_AUDITORIA = `Evaluá especialmente:
-1. Completitud de las secciones obligatorias (datos del paciente, antecedentes, enfermedad actual, examen físico, diagnóstico, estudios por imágenes, evolución, epicrisis).
-2. Coherencia clínica entre diagnóstico, examen físico, estudios y evolución.
-3. Justificación del nivel de cuidados: ¿está fundamentada la internación en UTI/UCO y/o Sala General según criterios de ingreso (inestabilidad hemodinámica, AVM, VNI, CNAF, monitoreo, drogas vasoactivas, complicaciones metabólicas, etc.)?
-4. Coherencia de fechas y días de internación (Sala + UTI/UCO = total de días).
-5. Estudios por imágenes: ¿están fechados y es coherente su solicitud y seguimiento con la evolución?`;
+/* Los 7 ejes fijos de la auditoría de expediente (requerimientos mínimos).
+   El orden y los IDs son estables: la IA debe devolver exactamente un
+   hallazgo por cada uno. */
+const EJES_AUDITORIA = [
+  { id:'autorizacion_dias',        icono:'📋', label:'Autorización de internación y días solicitados' },
+  { id:'historia_clinica',         icono:'📖', label:'Historia clínica completa (ingreso, evoluciones y epicrisis)' },
+  { id:'indicaciones_enfermeria',  icono:'💊', label:'Indicaciones médicas vs. ejecución de enfermería' },
+  { id:'controles_enfermeria',     icono:'🩺', label:'Controles de enfermería diarios' },
+  { id:'estudios_complementarios', icono:'🔬', label:'Laboratorio y diagnóstico por imágenes' },
+  { id:'protocolo_quirurgico',     icono:'🔪', label:'Protocolo quirúrgico y de anestesia' },
+  { id:'consentimiento_informado', icono:'✍️', label:'Consentimiento informado' },
+];
+
+const RUBRICA_AUDITORIA = `Auditá el EXPEDIENTE CLÍNICO COMPLETO del paciente (puede incluir: autorización de internación, historia clínica, indicaciones médicas, hoja/registro de enfermería, estudios de laboratorio e imágenes, protocolo quirúrgico/anestésico, y consentimiento informado) evaluando ESTRICTAMENTE estos 7 ejes, que son los requerimientos mínimos de la auditoría. Para CADA uno de los 7 ejes DEBÉS incluir un hallazgo en el JSON de salida usando el "criterio_id" EXACTO indicado entre corchetes, incluso si no encontrás información sobre ese eje en el documento (en ese caso: estado "no_cumple" y observación aclarando que no se halló esa documentación).
+
+1. [autorizacion_dias] AUTORIZACIÓN DE LA INTERNACIÓN Y DÍAS SOLICITADOS: ¿Existe autorización de la obra social/financiador para la internación? ¿Cuántos días de internación fueron solicitados/autorizados? Compará esa cantidad con los días reales de internación que surgen de las fechas de ingreso y egreso documentadas, y señalá cualquier diferencia entre días autorizados y días efectivamente utilizados.
+
+2. [historia_clinica] HISTORIA CLÍNICA COMPLETA: ¿Está completa la historia clínica de ingreso (datos del paciente, antecedentes, motivo de internación, diagnóstico, examen físico)? ¿Hay evoluciones médicas registradas día a día durante toda la internación, sin saltos de días sin evolución? ¿Está presente la epicrisis de egreso?
+
+3. [indicaciones_enfermeria] INDICACIONES MÉDICAS VS. EJECUCIÓN DE ENFERMERÍA: ¿Están completas las indicaciones médicas (medicación, dosis, vía, frecuencia/horario)? Comparalas con los registros de ejecución/administración de enfermería: ¿toda la medicación indicada figura como administrada? ¿Hay medicación administrada sin indicación médica respaldatoria? ¿Coinciden dosis, vías y horarios entre lo indicado y lo ejecutado? Detallá cualquier discrepancia concreta que encuentres (medicamento, fecha, qué no coincide).
+
+4. [controles_enfermeria] CONTROLES DE ENFERMERÍA DIARIOS: ¿Hay registro de controles de enfermería (signos vitales, balance, curva febril, etc.) para cada día de la internación y en cada turno? Señalá días o turnos sin controles registrados.
+
+5. [estudios_complementarios] ESTUDIOS COMPLEMENTARIOS (LABORATORIO Y DIAGNÓSTICO POR IMÁGENES): ¿Están presentes los estudios de laboratorio e imágenes solicitados? ¿Están fechados y son coherentes con el diagnóstico y la evolución clínica?
+
+6. [protocolo_quirurgico] PROTOCOLO QUIRÚRGICO Y DE ANESTESIA: Si hubo cirugía, ¿está el protocolo quirúrgico completo (procedimiento, cirujano, hallazgos)? ¿Está el protocolo de anestesia correspondiente (tipo de anestesia, anestesiólogo, monitoreo)? Si NO hubo cirugía, indicalo con estado "no_aplica" y severidad "ok".
+
+7. [consentimiento_informado] CONSENTIMIENTO INFORMADO: ¿Está presente el consentimiento informado firmado por el paciente (o su representante legal)? ¿Corresponde al procedimiento/cirugía/práctica efectivamente realizada? ¿Tiene fecha (previa al procedimiento) y firma del médico responsable? Si hubo cirugía o un procedimiento invasivo y no hay consentimiento informado, es un hallazgo CRÍTICO.`;
 
 const FORMATO_JSON_AUDITORIA = `Respondé EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto fuera del JSON) con esta estructura EXACTA:
 {
-  "puntaje": <entero 0-100 de calidad/consistencia global>,
-  "resumen": "<2-3 oraciones con la conclusión de la auditoría>",
+  "puntaje": <entero 0-100 de calidad/consistencia global del expediente>,
+  "resumen": "<2-3 oraciones con la conclusión general de la auditoría>",
   "hallazgos": [
     {
-      "criterio": "<aspecto auditado>",
-      "estado": "<cumple|parcial|no_cumple>",
+      "criterio_id": "<uno de: autorizacion_dias | historia_clinica | indicaciones_enfermeria | controles_enfermeria | estudios_complementarios | protocolo_quirurgico | consentimiento_informado — o vacío "" para un hallazgo adicional que no corresponda a los 7 ejes>",
+      "criterio": "<nombre descriptivo corto del aspecto auditado>",
+      "estado": "<cumple|parcial|no_cumple|no_aplica>",
       "severidad": "<ok|leve|moderado|critico>",
-      "observacion": "<comentario breve y concreto>"
+      "observacion": "<comentario breve, concreto y con datos específicos (fechas, cantidades de días, nombres de medicación) cuando corresponda>"
     }
   ]
-}`;
+}
+IMPORTANTE: el array "hallazgos" DEBE incluir exactamente un elemento con cada uno de los 7 "criterio_id" listados arriba. Podés agregar hallazgos adicionales con "criterio_id": "" para otras observaciones relevantes que no encajen en esos 7 ejes.`;
 
 function construirPromptAuditoria(texto){
-  return `Sos un AUDITOR MÉDICO experto en documentación hospitalaria argentina. Auditá la siguiente Historia Clínica de internación y evaluá su calidad y consistencia clínica según criterios de auditoría médica y guías internacionales.
+  const limite = 60000;
+  const truncado = texto.length > limite;
+  return `Sos un AUDITOR MÉDICO experto en documentación hospitalaria argentina, con experiencia en auditoría de expedientes para autorización y facturación ante obras sociales.
 
 ${RUBRICA_AUDITORIA}
 
-HISTORIA CLÍNICA A AUDITAR:
+EXPEDIENTE A AUDITAR:
 """
-${texto.slice(0, 14000)}
+${texto.slice(0, limite)}
 """
+${truncado ? `\nNOTA: el texto del expediente es más largo y fue recortado a los primeros ${limite} caracteres. Si esto limita la evaluación de algún eje, indicalo en la observación correspondiente y usá estado "parcial" en vez de "no_cumple".` : ''}
 
 ${FORMATO_JSON_AUDITORIA}`;
 }
 
-function construirPromptAuditoriaVision(){
-  return `Sos un AUDITOR MÉDICO experto en documentación hospitalaria argentina. A continuación se adjuntan, como IMÁGENES, las páginas de una Historia Clínica de internación (documento escaneado). LEÉ su contenido con atención (texto impreso y manuscrito) y auditá su calidad y consistencia clínica según criterios de auditoría médica y guías internacionales.
+function construirPromptAuditoriaVision(paginasTotales, paginasMostradas){
+  const truncado = paginasTotales && paginasTotales > paginasMostradas;
+  return `Sos un AUDITOR MÉDICO experto en documentación hospitalaria argentina, con experiencia en auditoría de expedientes para autorización y facturación ante obras sociales. A continuación se adjuntan, como IMÁGENES, las páginas de un expediente clínico escaneado (puede incluir varios documentos: autorización, historia clínica, indicaciones médicas, hoja de enfermería, estudios, protocolo quirúrgico). LEÉ su contenido con atención (texto impreso y manuscrito) y auditalo.
 
 ${RUBRICA_AUDITORIA}
 
-Si alguna parte resulta ilegible, indicá esa limitación en las observaciones.
+${truncado ? `NOTA: el documento tiene ${paginasTotales} páginas en total pero solo se te muestran las primeras ${paginasMostradas}. Si esto limita tu capacidad de evaluar algún eje (por ejemplo, controles de días posteriores no vistos), indicalo explícitamente en la observación correspondiente y usá estado "parcial" en vez de "no_cumple".\n\n` : ''}Si alguna parte resulta ilegible, indicá esa limitación en las observaciones.
 
 ${FORMATO_JSON_AUDITORIA}`;
 }
@@ -1119,6 +1162,18 @@ function parseAuditoriaJSON(s){
   const obj = JSON.parse(m[0]);
   if (!Array.isArray(obj.hallazgos)) obj.hallazgos = [];
   if (typeof obj.puntaje !== 'number') obj.puntaje = null;
+
+  // Normaliza los 6 ejes fijos: siempre presentes y en orden estable,
+  // aunque la IA no los haya devuelto todos.
+  obj.ejes = EJES_AUDITORIA.map(eje => {
+    const h = obj.hallazgos.find(x => (x.criterio_id||'').trim() === eje.id);
+    return h
+      ? { ...eje, estado:h.estado||'—', severidad:h.severidad||'—', observacion:h.observacion||'' }
+      : { ...eje, estado:'no_evaluado', severidad:'moderado', observacion:'La IA no evaluó este eje explícitamente.' };
+  });
+  // Hallazgos adicionales que no corresponden a los 6 ejes fijos
+  obj.extra = obj.hallazgos.filter(x => !EJES_AUDITORIA.some(e => e.id === (x.criterio_id||'').trim()));
+
   return obj;
 }
 
@@ -1131,10 +1186,11 @@ async function auditarResultadoConIA(r, btn, msg, hechos, total){
   try {
     let contenido;
     if (usaVision){
-      // PDF escaneado: se leen las páginas como imágenes (visión de Claude)
-      const { imgs } = await extraerPaginasComoImagenes(r.file, 8);
+      // PDF escaneado (o expediente largo): se leen las páginas como imágenes (visión de Claude)
+      const MAX_PAG = 100;
+      const { imgs, paginas } = await extraerPaginasComoImagenes(r.file, MAX_PAG);
       if (!imgs.length) throw new Error('No se pudieron renderizar las páginas del PDF.');
-      contenido = [{ type:'text', text: construirPromptAuditoriaVision() }];
+      contenido = [{ type:'text', text: construirPromptAuditoriaVision(paginas, imgs.length) }];
       imgs.forEach(b64 => contenido.push({
         type:'image', source:{ type:'base64', media_type:'image/jpeg', data:b64 }
       }));
@@ -1245,22 +1301,40 @@ function renderResultados(){
   cont.innerHTML = html;
 }
 
+const ESTADO_EJE_LABEL = { cumple:'✔ Cumple', parcial:'◐ Parcial', no_cumple:'✘ No cumple', no_aplica:'— No aplica', no_evaluado:'? No evaluado' };
+
 function renderIAHTML(ia){
   if (ia.error) return msgHTML('warn','Auditoría con IA: ' + ia.error);
   const p = ia.puntaje;
   const cls = (p==null)?'warn':(p>=80?'ok':(p>=60?'warn':'bad'));
   let h = `<div class="ia-box">`;
-  h += `<div class="ia-head">🤖 Auditoría IA (Claude) <span class="ia-score ${cls}">Puntaje: ${p==null?'—':p+'/100'}</span></div>`;
+  h += `<div class="ia-head">🤖 Auditoría IA — expediente (Claude) <span class="ia-score ${cls}">Puntaje: ${p==null?'—':p+'/100'}</span></div>`;
   if (ia.resumen) h += `<div class="ia-resumen">${escapeHTML(ia.resumen)}</div>`;
-  if (ia.hallazgos && ia.hallazgos.length){
+
+  if (ia.ejes && ia.ejes.length){
+    h += `<table><thead><tr><th>Eje auditado</th><th>Estado</th><th>Severidad</th><th>Observación</th></tr></thead><tbody>`;
+    ia.ejes.forEach(f=>{
+      const est = (f.estado||'').toLowerCase();
+      const sev = (f.severidad||'').toLowerCase();
+      const badgeEst = (est==='cumple'||est==='no_aplica') ? 'ok' : (est==='parcial' ? 'warn' : 'bad');
+      const badgeSev = sev==='critico'?'bad':((sev==='moderado'||sev==='leve')?'warn':'ok');
+      const lblEst = ESTADO_EJE_LABEL[est] || (f.estado||'—');
+      h += `<tr><td>${f.icono} ${escapeHTML(f.label)}</td><td><span class="badge ${badgeEst}">${escapeHTML(lblEst)}</span></td><td><span class="badge ${badgeSev}">${escapeHTML(f.severidad||'—')}</span></td><td>${escapeHTML(f.observacion||'')}</td></tr>`;
+    });
+    h += `</tbody></table>`;
+  }
+
+  if (ia.extra && ia.extra.length){
+    h += `<div style="margin-top:12px;font-weight:600;font-size:13px;color:var(--gris-texto)">Otros hallazgos</div>`;
     h += `<table><thead><tr><th>Criterio</th><th>Estado</th><th>Severidad</th><th>Observación</th></tr></thead><tbody>`;
-    ia.hallazgos.forEach(f=>{
+    ia.extra.forEach(f=>{
       const sev = (f.severidad||'').toLowerCase();
       const badge = sev==='critico'?'bad':((sev==='moderado'||sev==='leve')?'warn':'ok');
       h += `<tr><td>${escapeHTML(f.criterio||'')}</td><td>${escapeHTML(f.estado||'')}</td><td><span class="badge ${badge}">${escapeHTML(f.severidad||'—')}</span></td><td>${escapeHTML(f.observacion||'')}</td></tr>`;
     });
     h += `</tbody></table>`;
   }
+
   h += `</div>`;
   return h;
 }
