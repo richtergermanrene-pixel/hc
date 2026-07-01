@@ -13,7 +13,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/index.min.js"></script>
+<script src="https://unpkg.com/docx@9.7.1/dist/index.umd.cjs"></script>
 
 <style>
   :root{
@@ -405,6 +405,13 @@ function storeDel(k){
    ============================================================ */
 function getKey(){ return storeGet('anthropicKey') || ''; }
 
+/* Elimina cualquier carácter fuera del rango ASCII imprimible (comillas
+   tipográficas, espacios de no separación, caracteres invisibles, etc.
+   que a veces se cuelan al copiar/pegar y rompen los headers del fetch). */
+function sanitizarApiKey(v){
+  return (v || '').replace(/[^\x20-\x7E]/g, '').trim();
+}
+
 function refrescarEstadoKey(){
   const k = getKey();
   const dot = document.getElementById('keyDot');
@@ -426,18 +433,22 @@ function abrirModalKey(){
 }
 function cerrarModalKey(){ document.getElementById('modalKey').classList.remove('show'); }
 function guardarKey(){
-  const v = document.getElementById('inpKey').value.trim();
+  const raw = document.getElementById('inpKey').value;
+  const v = sanitizarApiKey(raw);
   const box = document.getElementById('keyMsg');
   if (!v){ box.innerHTML = msgHTML('err','Ingresá una API key válida.'); return; }
   storeSet('anthropicKey', v);
+  const huboLimpieza = raw.trim() !== v;
   const persiste = _storageOK ? 'guardada correctamente.' : 'guardada para esta sesión (no se recordará al cerrar, por estar abierto como file://).';
   if (!v.startsWith('sk-ant-')){
     box.innerHTML = msgHTML('warn','La key no empieza con "sk-ant-". Verificá que sea correcta. Se '+persiste);
+  } else if (huboLimpieza){
+    box.innerHTML = msgHTML('warn','Se detectaron y eliminaron caracteres inválidos (típico del copiar/pegar). API key '+persiste);
   } else {
     box.innerHTML = msgHTML('ok','API key '+persiste);
   }
   refrescarEstadoKey();
-  setTimeout(cerrarModalKey, 1100);
+  setTimeout(cerrarModalKey, 1300);
 }
 function borrarKey(){
   storeDel('anthropicKey');
@@ -611,21 +622,34 @@ IMPORTANTE: La estadía en UTI/UCO y en Sala General debe quedar debidamente jus
 
 // contenido puede ser un string (texto) o un array de bloques (texto + imágenes)
 async function llamarClaude(contenido, maxTokens){
-  const key = getKey();
-  const resp = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: MODELO,
-      max_tokens: maxTokens || 4000,
-      messages: [ { role:'user', content: contenido } ]
-    })
-  });
+  const raw = getKey();
+  const key = sanitizarApiKey(raw);
+  // Autocorrige en localStorage una key que haya quedado guardada con
+  // caracteres inválidos antes de este arreglo (autosaneo transparente).
+  if (key && key !== raw) storeSet('anthropicKey', key);
+
+  let resp;
+  try {
+    resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: MODELO,
+        max_tokens: maxTokens || 4000,
+        messages: [ { role:'user', content: contenido } ]
+      })
+    });
+  } catch(e){
+    if (/ISO-8859-1|non ISO|headers/i.test(e.message)){
+      throw new Error('La API key contiene caracteres inválidos. Volvé a abrir "🔑 Configurar API key", borrala y pegala de nuevo.');
+    }
+    throw e;
+  }
 
   if (!resp.ok){
     let detalle = '';
